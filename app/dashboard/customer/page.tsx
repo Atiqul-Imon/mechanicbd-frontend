@@ -1,8 +1,11 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
-import { get } from '../../../utils/api';
+import api, { get } from '../../../utils/api';
 import ProtectedRoute from '../../../components/ProtectedRoute';
+import Link from 'next/link';
+import PageLoader from '../../../components/PageLoader';
+import ErrorMessage from '../../../components/ErrorMessage';
 
 interface Booking {
   _id: string;
@@ -17,6 +20,7 @@ interface Booking {
     _id: string;
     fullName: string;
     phoneNumber: string;
+    profilePhoto?: string;
   };
   scheduledDate: string;
   scheduledTime: string;
@@ -30,11 +34,14 @@ function CustomerDashboardContent() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [cancelingId, setCancelingId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchBookings = async () => {
+      setLoading(true);
+      setError('');
       try {
-        const response = await get('/bookings?limit=10');
+        const response = await get('/bookings');
         setBookings(response.data.data.bookings);
       } catch (err: any) {
         setError(err.response?.data?.message || 'Failed to fetch bookings');
@@ -42,152 +49,79 @@ function CustomerDashboardContent() {
         setLoading(false);
       }
     };
-
     fetchBookings();
   }, []);
 
-  if (loading) return <div className="text-center mt-10">Loading...</div>;
-  if (error) return <div className="text-center mt-10 text-red-500">{error}</div>;
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'confirmed': return 'bg-blue-100 text-blue-800';
-      case 'in_progress': return 'bg-purple-100 text-purple-800';
-      case 'completed': return 'bg-green-100 text-green-800';
-      case 'cancelled': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+  const handleCancel = async (id: string) => {
+    setCancelingId(id);
+    try {
+      await api.patch(`/bookings/${id}/cancel`, {});
+      setBookings(bookings => bookings.map(b => b._id === id ? { ...b, status: 'cancelled' } : b));
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to cancel booking');
+    } finally {
+      setCancelingId(null);
     }
   };
 
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'pending': return 'bg-yellow-100 text-yellow-900';
+      case 'confirmed': return 'bg-blue-100 text-blue-900';
+      case 'in_progress': return 'bg-purple-100 text-purple-900';
+      case 'completed': return 'bg-green-100 text-green-900';
+      case 'cancelled': return 'bg-red-100 text-red-900';
+      default: return 'bg-gray-100 text-gray-900';
+    }
+  };
+
+  if (loading) return <PageLoader message="Loading your bookings..." />;
+  if (error) return <ErrorMessage message={error} />;
+
   return (
-    <div className="max-w-6xl mx-auto mt-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Customer Dashboard</h1>
-        <p className="text-gray-600 mt-2">Welcome back, {user?.fullName}!</p>
-      </div>
-
-      <div className="grid md:grid-cols-3 gap-6 mb-8">
-        {/* Quick Stats */}
-        <div className="bg-white p-6 rounded-lg shadow">
-          <div className="flex items-center">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Total Bookings</p>
-              <p className="text-2xl font-semibold text-gray-900">{bookings.length}</p>
-            </div>
+    <div className="min-h-screen bg-[var(--color-bg-light)] py-8">
+      <div className="max-w-5xl mx-auto px-4">
+        <h1 className="text-3xl font-bold mb-8 text-[var(--color-primary)]">My Bookings</h1>
+        {bookings.length === 0 ? (
+          <div className="text-center py-20">
+            <div className="text-6xl mb-4">📭</div>
+            <h2 className="text-xl font-semibold mb-2">No bookings yet</h2>
+            <p className="text-[var(--color-text-secondary)] mb-4">You haven't made any bookings yet. Browse services to get started!</p>
+            <Link href="/services" className="bg-accent text-white px-6 py-3 rounded-lg font-medium hover:bg-[var(--color-primary-dark)] transition">Browse Services</Link>
           </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-lg shadow">
-          <div className="flex items-center">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Completed</p>
-              <p className="text-2xl font-semibold text-gray-900">
-                {bookings.filter(b => b.status === 'completed').length}
-              </p>
-            </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {bookings.map(booking => (
+              <div key={booking._id} className="bg-white rounded-xl shadow-lg p-6 flex flex-col gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="flex-1">
+                    <h2 className="text-xl font-semibold text-[var(--color-primary-dark)]">{booking.service.title}</h2>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusBadge(booking.status)}`}>{booking.status.replace('_', ' ')}</span>
+                      <span className="text-sm text-[var(--color-text-secondary)]">৳{booking.totalAmount}</span>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm text-[var(--color-text-muted)]">{new Date(booking.scheduledDate).toLocaleDateString()} {booking.scheduledTime}</div>
+                    <div className="text-xs text-[var(--color-text-secondary)]">with {booking.mechanic.fullName}</div>
+                  </div>
+                </div>
+                <div className="flex gap-2 mt-2">
+                  <Link href={`/dashboard/customer/booking/${booking._id}`} className="bg-[var(--color-primary)] text-white px-4 py-2 rounded-lg font-medium hover:bg-[var(--color-primary-dark)] transition">View Details</Link>
+                  {booking.status === 'pending' && (
+                    <button
+                      onClick={() => handleCancel(booking._id)}
+                      className="bg-red-100 text-red-900 px-4 py-2 rounded-lg font-medium hover:bg-red-200 transition disabled:opacity-50"
+                      disabled={cancelingId === booking._id}
+                    >
+                      {cancelingId === booking._id ? 'Cancelling...' : 'Cancel'}
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-lg shadow">
-          <div className="flex items-center">
-            <div className="p-2 bg-yellow-100 rounded-lg">
-              <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Pending</p>
-              <p className="text-2xl font-semibold text-gray-900">
-                {bookings.filter(b => ['pending', 'confirmed'].includes(b.status)).length}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Recent Bookings */}
-      <div className="bg-white rounded-lg shadow">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900">Recent Bookings</h2>
-        </div>
-        <div className="overflow-x-auto">
-          {bookings.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-gray-500">No bookings found.</p>
-              <a href="/services" className="text-blue-600 hover:underline mt-2 inline-block">
-                Browse services
-              </a>
-            </div>
-          ) : (
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Booking
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Service
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Mechanic
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Date & Time
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Amount
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {bookings.map((booking) => (
-                  <tr key={booking._id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      #{booking.bookingNumber}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">{booking.service.title}</div>
-                        <div className="text-sm text-gray-500">{booking.service.category}</div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {booking.mechanic.fullName}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      <div>
-                        <div>{new Date(booking.scheduledDate).toLocaleDateString()}</div>
-                        <div className="text-gray-500">{booking.scheduledTime}</div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(booking.status)}`}>
-                        {booking.status.replace('_', ' ')}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      ৳ {booking.totalAmount}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
+        )}
       </div>
     </div>
   );

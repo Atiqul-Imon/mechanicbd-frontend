@@ -1,300 +1,599 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
-import { get } from '../../../utils/api';
-import Link from 'next/link';
+import api, { get } from '../../../utils/api';
 import ProtectedRoute from '../../../components/ProtectedRoute';
+import {
+  Box,
+  Drawer,
+  AppBar,
+  Toolbar,
+  List,
+  Typography,
+  Divider,
+  IconButton,
+  ListItem,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Card,
+  CardContent,
+  Grid,
+  Paper,
+  Chip,
+  Button,
+  Avatar,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Badge,
+  Menu,
+  MenuItem,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  FormControl,
+  InputLabel,
+  Select,
+  Alert,
+  CircularProgress,
+  useTheme,
+  useMediaQuery
+} from '@mui/material';
+import {
+  Dashboard as DashboardIcon,
+  People as PeopleIcon,
+  Build as BuildIcon,
+  Assignment as AssignmentIcon,
+  Assessment as AssessmentIcon,
+  Settings as SettingsIcon,
+  Menu as MenuIcon,
+  Notifications as NotificationsIcon,
+  AccountCircle as AccountCircleIcon,
+  TrendingUp as TrendingUpIcon,
+  AttachMoney as MoneyIcon,
+  Schedule as ScheduleIcon,
+  CheckCircle as CheckCircleIcon,
+  Cancel as CancelIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  Visibility as ViewIcon,
+  Add as AddIcon
+} from '@mui/icons-material';
+
+const drawerWidth = 240;
+
+interface Booking {
+  _id: string;
+  bookingNumber: string;
+  service: {
+    _id: string;
+    title: string;
+    category: string;
+    basePrice: number;
+  };
+  customer: {
+    _id: string;
+    fullName: string;
+    phoneNumber: string;
+    email: string;
+  };
+  mechanic: {
+    _id: string;
+    fullName: string;
+    phoneNumber: string;
+  };
+  scheduledDate: string;
+  scheduledTime: string;
+  status: string;
+  totalAmount: number;
+  createdAt: string;
+}
 
 interface User {
   _id: string;
   fullName: string;
-  email?: string;
+  email: string;
   phoneNumber: string;
   role: string;
   isActive: boolean;
-  isVerified: boolean;
   createdAt: string;
 }
 
-interface Service {
-  _id: string;
-  title: string;
-  category: string;
-  basePrice: number;
-  isActive: boolean;
-  mechanic: {
-    _id: string;
-    fullName: string;
-  };
-  createdAt: string;
-}
-
-interface PlatformStats {
+interface Stats {
   totalUsers: number;
-  customers: number;
-  mechanics: number;
-  admins: number;
-  activeUsers: number;
-  verifiedUsers: number;
+  totalCustomers: number;
+  totalMechanics: number;
+  totalBookings: number;
+  activeBookings: number;
+  completedBookings: number;
+  totalRevenue: number;
+  todayRevenue: number;
+  pendingMechanics: number;
 }
 
-function AdminDashboardContent() {
+function AdminDashboard() {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { user } = useAuth();
+  
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [bookings, setBookings] = useState<Booking[]>([]);
   const [users, setUsers] = useState<User[]>([]);
-  const [services, setServices] = useState<Service[]>([]);
-  const [stats, setStats] = useState<PlatformStats | null>(null);
+  const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [selectedMenu, setSelectedMenu] = useState('dashboard');
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [availableMechanics, setAvailableMechanics] = useState<User[]>([]);
+  const [selectedMechanic, setSelectedMechanic] = useState('');
 
   useEffect(() => {
-    const fetchAdminData = async () => {
-      try {
-        const [usersRes, servicesRes, statsRes] = await Promise.all([
-          get('/users?limit=10'),
-          get('/services/admin?limit=10'),
-          get('/users/admin/stats')
-        ]);
-
-        setUsers(usersRes.data.data.users);
-        setServices(servicesRes.data.data.services);
-        setStats(statsRes.data.data.stats);
-      } catch (err: any) {
-        setError(err.response?.data?.message || 'Failed to fetch admin data');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchAdminData();
+    fetchDashboardData();
   }, []);
 
-  if (loading) return <div className="text-center mt-10">Loading...</div>;
-  if (error) return <div className="text-center mt-10 text-red-500">{error}</div>;
+  const fetchDashboardData = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const [bookingsRes, usersRes, statsRes] = await Promise.all([
+        get('/bookings'),
+        get('/users'),
+        get('/users/admin/dashboard-stats')
+      ]);
+      
+      setBookings(bookingsRes.data.data.bookings);
+      setUsers(usersRes.data.data.users);
+      setStats(statsRes.data.data.stats);
+      
+      // Filter mechanics for assignment
+      const mechanics = usersRes.data.data.users.filter((u: User) => u.role === 'mechanic' && u.isActive);
+      setAvailableMechanics(mechanics);
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to fetch dashboard data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDrawerToggle = () => {
+    setMobileOpen(!mobileOpen);
+  };
+
+  const handleMenuClick = (menu: string) => {
+    setSelectedMenu(menu);
+    if (isMobile) {
+      setMobileOpen(false);
+    }
+  };
+
+  const handleAssignMechanic = async () => {
+    if (!selectedBooking || !selectedMechanic) return;
+    
+    try {
+      await api.patch(`/bookings/${selectedBooking._id}/assign`, {
+        mechanicId: selectedMechanic
+      });
+      
+      // Update booking in state
+      setBookings(bookings.map(b => 
+        b._id === selectedBooking._id 
+          ? { ...b, mechanic: availableMechanics.find(m => m._id === selectedMechanic)! }
+          : b
+      ));
+      
+      setAssignDialogOpen(false);
+      setSelectedBooking(null);
+      setSelectedMechanic('');
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to assign mechanic');
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'pending': return 'warning';
+      case 'confirmed': return 'info';
+      case 'in_progress': return 'secondary';
+      case 'completed': return 'success';
+      case 'cancelled': return 'error';
+      default: return 'default';
+    }
+  };
+
+  const menuItems = [
+    { text: 'Dashboard', icon: <DashboardIcon />, value: 'dashboard' },
+    { text: 'Bookings', icon: <AssignmentIcon />, value: 'bookings' },
+    { text: 'Users', icon: <PeopleIcon />, value: 'users' },
+    { text: 'Services', icon: <BuildIcon />, value: 'services' },
+    { text: 'Reports', icon: <AssessmentIcon />, value: 'reports' },
+    { text: 'Settings', icon: <SettingsIcon />, value: 'settings' },
+  ];
+
+  const drawer = (
+    <div>
+      <Toolbar>
+        <Typography variant="h6" noWrap component="div" sx={{ color: 'primary.main', fontWeight: 'bold' }}>
+          Mechanic BD Admin
+        </Typography>
+      </Toolbar>
+      <Divider />
+      <List>
+        {menuItems.map((item) => (
+          <ListItem key={item.text} disablePadding>
+            <ListItemButton
+              selected={selectedMenu === item.value}
+              onClick={() => handleMenuClick(item.value)}
+              sx={{
+                '&.Mui-selected': {
+                  backgroundColor: 'primary.light',
+                  '&:hover': {
+                    backgroundColor: 'primary.light',
+                  },
+                },
+              }}
+            >
+              <ListItemIcon sx={{ color: selectedMenu === item.value ? 'primary.main' : 'inherit' }}>
+                {item.icon}
+              </ListItemIcon>
+              <ListItemText primary={item.text} />
+            </ListItemButton>
+          </ListItem>
+        ))}
+      </List>
+    </div>
+  );
+
+  const renderDashboard = () => (
+    <Box sx={{ p: 3 }}>
+      {/* Stats Cards */}
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ height: '100%' }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Box>
+                  <Typography color="textSecondary" gutterBottom variant="h6">
+                    Total Users
+                  </Typography>
+                  <Typography variant="h4" component="div">
+                    {stats?.totalUsers || 0}
+                  </Typography>
+                </Box>
+                <Avatar sx={{ bgcolor: 'primary.main' }}>
+                  <PeopleIcon />
+                </Avatar>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+        
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ height: '100%' }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Box>
+                  <Typography color="textSecondary" gutterBottom variant="h6">
+                    Active Bookings
+                  </Typography>
+                  <Typography variant="h4" component="div">
+                    {stats?.activeBookings || 0}
+                  </Typography>
+                </Box>
+                <Avatar sx={{ bgcolor: 'info.main' }}>
+                  <ScheduleIcon />
+                </Avatar>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+        
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ height: '100%' }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Box>
+                  <Typography color="textSecondary" gutterBottom variant="h6">
+                    Total Revenue
+                  </Typography>
+                  <Typography variant="h4" component="div">
+                    ৳{stats?.totalRevenue || 0}
+                  </Typography>
+                </Box>
+                <Avatar sx={{ bgcolor: 'success.main' }}>
+                  <MoneyIcon />
+                </Avatar>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+        
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ height: '100%' }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Box>
+                  <Typography color="textSecondary" gutterBottom variant="h6">
+                    Today's Revenue
+                  </Typography>
+                  <Typography variant="h4" component="div">
+                    ৳{stats?.todayRevenue || 0}
+                  </Typography>
+                </Box>
+                <Avatar sx={{ bgcolor: 'warning.main' }}>
+                  <TrendingUpIcon />
+                </Avatar>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+
+      {/* Recent Bookings */}
+      <Card>
+        <CardContent>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h5" component="h2">
+              Recent Bookings
+            </Typography>
+            <Button variant="outlined" startIcon={<AddIcon />}>
+              View All
+            </Button>
+          </Box>
+          
+          <TableContainer>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Booking #</TableCell>
+                  <TableCell>Customer</TableCell>
+                  <TableCell>Service</TableCell>
+                  <TableCell>Mechanic</TableCell>
+                  <TableCell>Date</TableCell>
+                  <TableCell>Status</TableCell>
+                  <TableCell>Amount</TableCell>
+                  <TableCell>Actions</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {bookings.slice(0, 10).map((booking) => (
+                  <TableRow key={booking._id}>
+                    <TableCell>{booking.bookingNumber}</TableCell>
+                    <TableCell>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Avatar sx={{ width: 32, height: 32 }}>
+                          {booking.customer.fullName.charAt(0)}
+                        </Avatar>
+                        <Box>
+                          <Typography variant="body2">{booking.customer.fullName}</Typography>
+                          <Typography variant="caption" color="textSecondary">
+                            {booking.customer.phoneNumber}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </TableCell>
+                    <TableCell>{booking.service.title}</TableCell>
+                    <TableCell>
+                      {booking.mechanic ? (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Avatar sx={{ width: 24, height: 24 }}>
+                            {booking.mechanic.fullName.charAt(0)}
+                          </Avatar>
+                          <Typography variant="body2">{booking.mechanic.fullName}</Typography>
+                        </Box>
+                      ) : (
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          onClick={() => {
+                            setSelectedBooking(booking);
+                            setAssignDialogOpen(true);
+                          }}
+                        >
+                          Assign
+                        </Button>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {new Date(booking.scheduledDate).toLocaleDateString()}
+                      <br />
+                      <Typography variant="caption" color="textSecondary">
+                        {booking.scheduledTime}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Chip
+                        label={booking.status.replace('_', ' ')}
+                        color={getStatusColor(booking.status) as any}
+                        size="small"
+                      />
+                    </TableCell>
+                    <TableCell>৳{booking.totalAmount}</TableCell>
+                    <TableCell>
+                      <Box sx={{ display: 'flex', gap: 0.5 }}>
+                        <IconButton size="small" color="primary">
+                          <ViewIcon />
+                        </IconButton>
+                        <IconButton size="small" color="secondary">
+                          <EditIcon />
+                        </IconButton>
+                      </Box>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </CardContent>
+      </Card>
+    </Box>
+  );
+
+  const renderContent = () => {
+    switch (selectedMenu) {
+      case 'dashboard':
+        return renderDashboard();
+      case 'bookings':
+        return <Typography>Bookings Management</Typography>;
+      case 'users':
+        return <Typography>User Management</Typography>;
+      case 'services':
+        return <Typography>Service Management</Typography>;
+      case 'reports':
+        return <Typography>Reports & Analytics</Typography>;
+      case 'settings':
+        return <Typography>Settings</Typography>;
+      default:
+        return renderDashboard();
+    }
+  };
+
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Alert severity="error">{error}</Alert>
+      </Box>
+    );
+  }
 
   return (
-    <div className="max-w-6xl mx-auto mt-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-        <p className="text-gray-600 mt-2">Welcome back, {user?.fullName}!</p>
-      </div>
+    <Box sx={{ display: 'flex' }}>
+      <AppBar
+        position="fixed"
+        sx={{
+          width: { sm: `calc(100% - ${drawerWidth}px)` },
+          ml: { sm: `${drawerWidth}px` },
+        }}
+      >
+        <Toolbar>
+          <IconButton
+            color="inherit"
+            aria-label="open drawer"
+            edge="start"
+            onClick={handleDrawerToggle}
+            sx={{ mr: 2, display: { sm: 'none' } }}
+          >
+            <MenuIcon />
+          </IconButton>
+          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
+            {menuItems.find(item => item.value === selectedMenu)?.text || 'Dashboard'}
+          </Typography>
+          <IconButton color="inherit">
+            <Badge badgeContent={4} color="error">
+              <NotificationsIcon />
+            </Badge>
+          </IconButton>
+          <IconButton
+            color="inherit"
+            onClick={(e) => setAnchorEl(e.currentTarget)}
+          >
+            <AccountCircleIcon />
+          </IconButton>
+        </Toolbar>
+      </AppBar>
 
-      {/* Platform Stats */}
-      <div className="grid md:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-          <div className="flex items-center">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
-              </svg>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Total Users</p>
-              <p className="text-2xl font-semibold text-gray-900">{stats?.totalUsers || 0}</p>
-            </div>
-          </div>
-        </div>
+      <Box
+        component="nav"
+        sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
+      >
+        <Drawer
+          variant="temporary"
+          open={mobileOpen}
+          onClose={handleDrawerToggle}
+          ModalProps={{
+            keepMounted: true,
+          }}
+          sx={{
+            display: { xs: 'block', sm: 'none' },
+            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
+          }}
+        >
+          {drawer}
+        </Drawer>
+        <Drawer
+          variant="permanent"
+          sx={{
+            display: { xs: 'none', sm: 'block' },
+            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
+          }}
+          open
+        >
+          {drawer}
+        </Drawer>
+      </Box>
 
-        <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-          <div className="flex items-center">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Active Users</p>
-              <p className="text-2xl font-semibold text-gray-900">{stats?.activeUsers || 0}</p>
-            </div>
-          </div>
-        </div>
+      <Box
+        component="main"
+        sx={{
+          flexGrow: 1,
+          p: 3,
+          width: { sm: `calc(100% - ${drawerWidth}px)` },
+          mt: 8,
+        }}
+      >
+        {renderContent()}
+      </Box>
 
-        <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-          <div className="flex items-center">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-              </svg>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Mechanics</p>
-              <p className="text-2xl font-semibold text-gray-900">{stats?.mechanics || 0}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-          <div className="flex items-center">
-            <div className="p-2 bg-orange-100 rounded-lg">
-              <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Total Services</p>
-              <p className="text-2xl font-semibold text-gray-900">{services.length}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid lg:grid-cols-2 gap-8">
-        {/* Recent Users */}
-        <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-          <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-            <h2 className="text-xl font-semibold text-gray-900">Recent Users</h2>
-            <Link 
-              href="/users" 
-              className="text-blue-600 hover:underline text-sm"
+      {/* Assign Mechanic Dialog */}
+      <Dialog open={assignDialogOpen} onClose={() => setAssignDialogOpen(false)}>
+        <DialogTitle>Assign Mechanic</DialogTitle>
+        <DialogContent>
+          <FormControl fullWidth sx={{ mt: 2 }}>
+            <InputLabel>Select Mechanic</InputLabel>
+            <Select
+              value={selectedMechanic}
+              label="Select Mechanic"
+              onChange={(e) => setSelectedMechanic(e.target.value)}
             >
-              View All
-            </Link>
-          </div>
-          <div className="p-6">
-            {users.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-gray-500">No users found.</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {users.slice(0, 5).map((user) => (
-                  <div key={user._id} className="border rounded-lg p-4">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h3 className="font-medium text-gray-900">{user.fullName}</h3>
-                        <p className="text-sm text-gray-500">{user.phoneNumber}</p>
-                        {user.email && <p className="text-sm text-gray-500">{user.email}</p>}
-                        <div className="flex items-center gap-2 mt-2">
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                            user.role === 'admin' ? 'bg-red-100 text-red-800' :
-                            user.role === 'mechanic' ? 'bg-blue-100 text-blue-800' :
-                            'bg-green-100 text-green-800'
-                          }`}>
-                            {user.role}
-                          </span>
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                            user.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                          }`}>
-                            {user.isActive ? 'Active' : 'Inactive'}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-xs text-gray-500">
-                          {new Date(user.createdAt).toLocaleDateString()}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
+              {availableMechanics.map((mechanic) => (
+                <MenuItem key={mechanic._id} value={mechanic._id}>
+                  {mechanic.fullName} - {mechanic.phoneNumber}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setAssignDialogOpen(false)}>Cancel</Button>
+          <Button onClick={handleAssignMechanic} variant="contained">
+            Assign
+          </Button>
+        </DialogActions>
+      </Dialog>
 
-        {/* Recent Services */}
-        <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-          <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-            <h2 className="text-xl font-semibold text-gray-900">Recent Services</h2>
-            <Link 
-              href="/services" 
-              className="text-blue-600 hover:underline text-sm"
-            >
-              View All
-            </Link>
-          </div>
-          <div className="p-6">
-            {services.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-gray-500">No services found.</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {services.slice(0, 5).map((service) => (
-                  <div key={service._id} className="border rounded-lg p-4">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h3 className="font-medium text-gray-900">{service.title}</h3>
-                        <p className="text-sm text-gray-500">{service.category}</p>
-                        <p className="text-sm font-medium text-green-600">৳ {service.basePrice}</p>
-                        <p className="text-sm text-gray-500">by {service.mechanic.fullName}</p>
-                      </div>
-                      <div className="text-right">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          service.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                        }`}>
-                          {service.isActive ? 'Active' : 'Inactive'}
-                        </span>
-                        <p className="text-xs text-gray-500 mt-1">
-                          {new Date(service.createdAt).toLocaleDateString()}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Quick Actions */}
-      <div className="mt-8 bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">Quick Actions</h2>
-        <div className="grid md:grid-cols-3 gap-4">
-          <Link 
-            href="/services/add" 
-            className="flex items-center p-4 border rounded-lg hover:bg-gray-50 transition"
-          >
-            <div className="p-2 bg-blue-100 rounded-lg mr-3">
-              <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-            </div>
-            <div>
-              <h3 className="font-medium text-gray-900">Add Service</h3>
-              <p className="text-sm text-gray-500">Create a new service</p>
-            </div>
-          </Link>
-
-          <Link 
-            href="/users" 
-            className="flex items-center p-4 border rounded-lg hover:bg-gray-50 transition"
-          >
-            <div className="p-2 bg-green-100 rounded-lg mr-3">
-              <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
-              </svg>
-            </div>
-            <div>
-              <h3 className="font-medium text-gray-900">Manage Users</h3>
-              <p className="text-sm text-gray-500">View and manage users</p>
-            </div>
-          </Link>
-
-          <Link 
-            href="/bookings" 
-            className="flex items-center p-4 border rounded-lg hover:bg-gray-50 transition"
-          >
-            <div className="p-2 bg-purple-100 rounded-lg mr-3">
-              <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
-            </div>
-            <div>
-              <h3 className="font-medium text-gray-900">View Bookings</h3>
-              <p className="text-sm text-gray-500">Monitor all bookings</p>
-            </div>
-          </Link>
-        </div>
-      </div>
-    </div>
+      {/* User Menu */}
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={() => setAnchorEl(null)}
+      >
+        <MenuItem onClick={() => setAnchorEl(null)}>Profile</MenuItem>
+        <MenuItem onClick={() => setAnchorEl(null)}>Settings</MenuItem>
+        <MenuItem onClick={() => setAnchorEl(null)}>Logout</MenuItem>
+      </Menu>
+    </Box>
   );
 }
 
-export default function AdminDashboard() {
+export default function AdminDashboardWrapper() {
   return (
     <ProtectedRoute allowedRoles={['admin']}>
-      <AdminDashboardContent />
+      <AdminDashboard />
     </ProtectedRoute>
   );
 } 
