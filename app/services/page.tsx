@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { get } from '../../utils/api';
 import { useAuth } from '../../contexts/AuthContext';
+import PageLoader from '../../components/PageLoader';
+import ErrorMessage from '../../components/ErrorMessage';
 
 interface Service {
   _id: string;
@@ -67,6 +69,8 @@ export default function ServicesPage() {
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     const fetchServices = async () => {
@@ -75,8 +79,11 @@ export default function ServicesPage() {
       try {
         const response = await get('/services');
         setServices(response.data.data.services);
-      } catch (err: any) {
-        setError(err.response?.data?.message || 'Failed to fetch services');
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to fetch services';
+        setError(errorMessage);
+        // Fallback to mock data for development
+        setServices(mockServices);
       } finally {
         setLoading(false);
       }
@@ -84,21 +91,37 @@ export default function ServicesPage() {
     fetchServices();
   }, []);
 
-  if (loading) return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-    </div>
-  );
+  // Filter services based on category and search
+  const filteredServices = services.filter(service => {
+    const matchesCategory = selectedCategory === 'all' || service.category === selectedCategory;
+    const matchesSearch = service.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         service.description.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
+
+  if (loading) {
+    return <PageLoader message="Loading services..." />;
+  }
   
-  if (error) return <div className="text-center mt-10 text-warning">{error}</div>;
+  if (error && services.length === 0) {
+    return (
+      <ErrorMessage
+        title="Failed to Load Services"
+        message={error}
+        icon="🔧"
+        backUrl="/"
+        backText="Go Home"
+      />
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-background-light">
+    <div className="min-h-screen bg-[var(--color-bg-light)]">
       {/* Hero Section */}
-      <div className="bg-gradient-to-r from-primary to-primary-dark text-white py-16">
+      <div className="bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-dark)] text-white py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
-            <h1 className="text-4xl md:text-5xl font-bold mb-4 font-poppins">
+            <h1 className="text-4xl md:text-5xl font-bold mb-4 font-poppins text-white drop-shadow-lg">
               Find Professional Services
             </h1>
             <p className="text-xl md:text-2xl mb-8 text-accent font-hind">
@@ -109,56 +132,102 @@ export default function ServicesPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-text-primary">Available Services</h2>
-          {isAuthenticated && (user?.role === 'mechanic' || user?.role === 'admin') && (
-            <Link 
-              href="/services/add" 
-              className="bg-accent text-white px-4 py-2 rounded-lg hover:bg-accent-dark transition-colors font-medium"
-            >
-              Add Service
-            </Link>
-          )}
+        {/* Search and Filter Section */}
+        <div className="mb-8">
+          <div className="flex flex-col md:flex-row gap-4 mb-6">
+            <div className="flex-1">
+              <input
+                type="text"
+                placeholder="Search services..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
+              />
+            </div>
+            {isAuthenticated && (user?.role === 'mechanic' || user?.role === 'admin') && (
+              <Link 
+                href="/services/add" 
+                className="bg-accent text-white px-6 py-3 rounded-lg hover:bg-[var(--color-primary-dark)] hover:text-accent transition-all duration-200 font-medium whitespace-nowrap"
+              >
+                Add Service
+              </Link>
+            )}
+          </div>
+          
+          {/* Category Filter */}
+          <div className="flex flex-wrap gap-2">
+            {categories.map((category) => (
+              <button
+                key={category.id}
+                onClick={() => setSelectedCategory(category.id)}
+                className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 transform hover:scale-105 ${
+                  selectedCategory === category.id
+                    ? 'bg-[var(--color-primary)] text-white'
+                    : 'bg-white text-[var(--color-text-main)] hover:bg-[var(--color-primary)] hover:text-white'
+                }`}
+              >
+                <span className="mr-2">{category.icon}</span>
+                {category.name}
+              </button>
+            ))}
+          </div>
         </div>
         
-        {services.length === 0 ? (
+        {/* Services Grid */}
+        {filteredServices.length === 0 ? (
           <div className="text-center py-16">
             <div className="text-6xl mb-4">🔍</div>
-            <h3 className="text-xl font-semibold text-text-primary mb-2">No services found</h3>
-            <p className="text-text-secondary">Check back later for available services.</p>
+            <h3 className="text-xl font-semibold text-[var(--color-text-main)] mb-2">No services found</h3>
+            <p className="text-[var(--color-text-secondary)] mb-4">
+              {searchTerm || selectedCategory !== 'all' 
+                ? 'Try adjusting your search or filter criteria.'
+                : 'Check back later for available services.'
+              }
+            </p>
+            {(searchTerm || selectedCategory !== 'all') && (
+              <button
+                onClick={() => {
+                  setSearchTerm('');
+                  setSelectedCategory('all');
+                }}
+                className="bg-[var(--color-primary)] text-white px-6 py-3 rounded-lg hover:bg-[var(--color-primary-dark)] transition-colors"
+              >
+                Clear Filters
+              </button>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {services.map((service) => (
-              <div key={service._id} className="bg-background-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100">
-                <div className="h-48 bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center">
+            {filteredServices.map((service) => (
+              <div key={service._id} className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100 transform hover:-translate-y-1">
+                <div className="h-48 bg-gradient-to-br from-[var(--color-primary)]/10 to-[var(--color-primary-dark)]/5 flex items-center justify-center">
                   <span className="text-6xl">🔧</span>
                 </div>
                 <div className="p-6">
                   <div className="flex items-center justify-between mb-3">
-                    <span className="inline-flex items-center px-3 py-1 bg-primary/10 text-primary text-xs font-medium rounded-full">
+                    <span className="inline-flex items-center px-3 py-1 bg-[var(--color-primary)]/10 text-[var(--color-primary)] text-xs font-medium rounded-full">
                       {service.category}
                     </span>
                     <span className="text-2xl font-bold text-accent">৳{service.basePrice}</span>
                   </div>
-                  <h3 className="text-xl font-semibold text-text-primary mb-2">{service.title}</h3>
-                  <p className="text-text-secondary text-sm mb-4 line-clamp-2">{service.description}</p>
-                  <div className="flex items-center justify-between text-sm text-text-muted mb-4">
+                  <h3 className="text-xl font-semibold text-[var(--color-text-main)] mb-2">{service.title}</h3>
+                  <p className="text-[var(--color-text-secondary)] text-sm mb-4 line-clamp-2">{service.description}</p>
+                  <div className="flex items-center justify-between text-sm text-[var(--color-text-muted)] mb-4">
                     <span>📍 {service.serviceArea}</span>
                   </div>
                   {service.mechanic && (
                     <div className="flex items-center gap-2 mb-4">
-                      <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
-                        <span className="text-primary font-semibold text-sm">
+                      <div className="w-8 h-8 bg-[var(--color-primary)]/10 rounded-full flex items-center justify-center">
+                        <span className="text-[var(--color-primary)] font-semibold text-sm">
                           {service.mechanic.fullName.charAt(0)}
                         </span>
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-text-primary">{service.mechanic.fullName}</p>
+                        <p className="text-sm font-medium text-[var(--color-text-main)]">{service.mechanic.fullName}</p>
                         {service.mechanic.averageRating && (
                           <div className="flex items-center gap-1">
                             <span className="text-yellow-400">★</span>
-                            <span className="text-xs text-text-muted">{service.mechanic.averageRating.toFixed(1)}</span>
+                            <span className="text-xs text-[var(--color-text-muted)]">{service.mechanic.averageRating.toFixed(1)}</span>
                           </div>
                         )}
                       </div>
@@ -166,7 +235,7 @@ export default function ServicesPage() {
                   )}
                   <Link 
                     href={`/services/${service._id}`} 
-                    className="block w-full bg-accent text-white text-center py-3 rounded-lg hover:bg-accent-dark transition-colors font-medium"
+                    className="block w-full bg-[var(--color-primary)] text-white text-center py-3 rounded-lg hover:bg-[var(--color-primary-dark)] transition-all duration-200 font-medium transform hover:scale-105"
                   >
                     View Details & Book
                   </Link>

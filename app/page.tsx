@@ -75,7 +75,7 @@ export default function Home() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <Link
               href="/services"
-              className="bg-accent hover:bg-accent-hover text-[var(--color-primary-dark)] px-8 py-4 rounded-full font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+              className="bg-accent hover:bg-accent-hover text-white px-8 py-4 rounded-full font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
             >
               Browse Services
             </Link>
@@ -83,7 +83,7 @@ export default function Home() {
               href="/register"
               className="bg-accent hover:bg-accent-hover text-white px-8 py-4 rounded-full font-semibold text-lg transition-all duration-300 transform hover:scale-105 border-2 border-accent hover:border-accent-hover"
             >
-              Join Now
+              Get Started
             </Link>
           </div>
         </div>
@@ -140,8 +140,8 @@ export default function Home() {
               <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-[var(--color-primary)]/10 to-[var(--color-primary-dark)]/10 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
                 <span className="text-3xl">{service.icon}</span>
               </div>
-              <h3 className="font-semibold text-[var(--color-text-main)] mb-2 font-hind">{service.name}</h3>
-              <p className="text-xs text-[var(--color-text-muted)]">{service.description}</p>
+              <h3 className="text-lg font-semibold text-[var(--color-primary-dark)] mb-2">{service.name}</h3>
+              <p className="text-text-secondary">{service.description}</p>
             </div>
           ))}
         </div>
@@ -240,12 +240,8 @@ export default function Home() {
       {/* CTA Section */}
       <section className="bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-primary-dark)] text-white py-20 px-4">
         <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-6 font-poppins text-white drop-shadow">
-            Ready to Get Started?
-          </h2>
-          <p className="text-xl mb-10 text-[var(--color-bg-warm)] max-w-2xl mx-auto">
-            Join thousands of satisfied customers who trust Mechanic BD for their service needs
-          </p>
+          <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">Ready to Get Started?</h2>
+          <p className="text-xl mb-10 text-white max-w-2xl mx-auto">Join thousands of satisfied customers who trust Mechanic BD for their service needs</p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               href="/register"

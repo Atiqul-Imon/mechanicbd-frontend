@@ -80,7 +80,7 @@ function AdminDashboardContent() {
 
       {/* Platform Stats */}
       <div className="grid md:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white p-6 rounded-lg shadow">
+        <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
           <div className="flex items-center">
             <div className="p-2 bg-blue-100 rounded-lg">
               <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -94,7 +94,7 @@ function AdminDashboardContent() {
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-lg shadow">
+        <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
           <div className="flex items-center">
             <div className="p-2 bg-green-100 rounded-lg">
               <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -108,7 +108,7 @@ function AdminDashboardContent() {
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-lg shadow">
+        <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
           <div className="flex items-center">
             <div className="p-2 bg-purple-100 rounded-lg">
               <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -122,7 +122,7 @@ function AdminDashboardContent() {
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-lg shadow">
+        <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
           <div className="flex items-center">
             <div className="p-2 bg-orange-100 rounded-lg">
               <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -139,7 +139,7 @@ function AdminDashboardContent() {
 
       <div className="grid lg:grid-cols-2 gap-8">
         {/* Recent Users */}
-        <div className="bg-white rounded-lg shadow">
+        <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
           <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
             <h2 className="text-xl font-semibold text-gray-900">Recent Users</h2>
             <Link 
@@ -192,7 +192,7 @@ function AdminDashboardContent() {
         </div>
 
         {/* Recent Services */}
-        <div className="bg-white rounded-lg shadow">
+        <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
           <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
             <h2 className="text-xl font-semibold text-gray-900">Recent Services</h2>
             <Link 
@@ -238,7 +238,7 @@ function AdminDashboardContent() {
       </div>
 
       {/* Quick Actions */}
-      <div className="mt-8 bg-white rounded-lg shadow p-6">
+      <div className="mt-8 bg-white rounded-xl shadow-lg p-6 border border-gray-100">
         <h2 className="text-xl font-semibold text-gray-900 mb-4">Quick Actions</h2>
         <div className="grid md:grid-cols-3 gap-4">
           <Link 

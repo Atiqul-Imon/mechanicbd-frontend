@@ -4,6 +4,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { get, put } from '../../utils/api';
 import ProtectedRoute from '../../components/ProtectedRoute';
 import Link from 'next/link';
+import LoadingSpinner from '../../components/LoadingSpinner';
+import ErrorMessage from '../../components/ErrorMessage';
 
 interface UserProfile {
   _id: string;
@@ -37,6 +39,8 @@ interface UserStats {
   totalEarnings?: number;
 }
 
+const AVAILABLE_SKILLS = ['HVAC', 'Electrical', 'Plumbing', 'Appliances', 'Carpentry', 'Painting', 'Cleaning', 'Other'];
+
 export default function ProfilePage() {
   return (
     <ProtectedRoute>
@@ -52,6 +56,7 @@ function ProfileContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [isEditing, setIsEditing] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [editForm, setEditForm] = useState({
     fullName: '',
     email: '',
@@ -61,9 +66,19 @@ function ProfileContent() {
       city: '',
       district: '',
       postalCode: ''
-    }
+    },
+    experience: 0,
+    hourlyRate: 0,
+    skills: [] as string[]
+  });
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
   });
   const [saveLoading, setSaveLoading] = useState(false);
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [formErrors, setFormErrors] = useState<{[key: string]: string}>({});
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -87,7 +102,10 @@ function ProfileContent() {
             city: profileRes.data.data.user.address?.city || '',
             district: profileRes.data.data.user.address?.district || '',
             postalCode: profileRes.data.data.user.address?.postalCode || ''
-          }
+          },
+          experience: profileRes.data.data.user.experience || 0,
+          hourlyRate: profileRes.data.data.user.hourlyRate || 0,
+          skills: profileRes.data.data.user.skills || []
         });
       } catch (err: any) {
         setError(err.response?.data?.message || 'Failed to fetch profile');
@@ -99,8 +117,61 @@ function ProfileContent() {
     fetchProfile();
   }, []);
 
+  const validateForm = () => {
+    const errors: {[key: string]: string} = {};
+    
+    if (!editForm.fullName.trim()) {
+      errors.fullName = 'Full name is required';
+    }
+    
+    if (editForm.email && !/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/.test(editForm.email)) {
+      errors.email = 'Please enter a valid email';
+    }
+    
+    if (editForm.bio && editForm.bio.length > 500) {
+      errors.bio = 'Bio cannot exceed 500 characters';
+    }
+    
+    if (profile?.role === 'mechanic') {
+      if (editForm.experience < 0 || editForm.experience > 50) {
+        errors.experience = 'Experience must be between 0 and 50 years';
+      }
+      
+      if (editForm.hourlyRate < 0) {
+        errors.hourlyRate = 'Hourly rate cannot be negative';
+      }
+    }
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const validatePasswordForm = () => {
+    const errors: {[key: string]: string} = {};
+    
+    if (!passwordForm.currentPassword) {
+      errors.currentPassword = 'Current password is required';
+    }
+    
+    if (!passwordForm.newPassword) {
+      errors.newPassword = 'New password is required';
+    } else if (passwordForm.newPassword.length < 6) {
+      errors.newPassword = 'Password must be at least 6 characters';
+    }
+    
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      errors.confirmPassword = 'Passwords do not match';
+    }
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const handleSave = async () => {
+    if (!validateForm()) return;
+    
     setSaveLoading(true);
+    setError('');
     try {
       const response = await put('/users/me', editForm);
       setProfile(response.data.data.user);
@@ -116,30 +187,46 @@ function ProfileContent() {
     }
   };
 
+  const handlePasswordChange = async () => {
+    if (!validatePasswordForm()) return;
+    
+    setPasswordLoading(true);
+    setError('');
+    try {
+      await put('/auth/update-password', {
+        currentPassword: passwordForm.currentPassword,
+        newPassword: passwordForm.newPassword
+      });
+      
+      setPasswordForm({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      });
+      setIsChangingPassword(false);
+      setError('');
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to change password');
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
+  const handleSkillToggle = (skill: string) => {
+    const currentSkills = editForm.skills;
+    const updatedSkills = currentSkills.includes(skill)
+      ? currentSkills.filter(s => s !== skill)
+      : [...currentSkills, skill];
+    
+    setEditForm({ ...editForm, skills: updatedSkills });
+  };
+
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   if (error && !profile) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-6xl mb-4">❌</div>
-          <h2 className="text-xl font-semibold text-text-primary mb-2">Error</h2>
-          <p className="text-text-secondary mb-4">{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="bg-warning text-white px-6 py-3 rounded-lg hover:bg-warning-light transition-colors"
-          >
-            Try Again
-          </button>
-        </div>
-      </div>
-    );
+    return <ErrorMessage message={error} />;
   }
 
   if (!profile) return null;
@@ -201,12 +288,21 @@ function ProfileContent() {
                   </div>
                 </div>
 
-                <button
-                  onClick={() => setIsEditing(true)}
-                  className="w-full mt-6 bg-accent text-white py-2 rounded-lg hover:bg-accent-dark transition-colors font-medium"
-                >
-                  Edit Profile
-                </button>
+                <div className="mt-6 space-y-3">
+                  <button
+                    onClick={() => setIsEditing(true)}
+                    className="w-full bg-accent text-white py-2 rounded-lg hover:bg-accent-dark transition-colors font-medium"
+                  >
+                    Edit Profile
+                  </button>
+                  
+                  <button
+                    onClick={() => setIsChangingPassword(true)}
+                    className="w-full bg-background-light text-text-primary py-2 rounded-lg hover:bg-gray-200 transition-colors font-medium border border-gray-300"
+                  >
+                    Change Password
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -311,7 +407,25 @@ function ProfileContent() {
                 {isEditing && (
                   <div className="flex gap-2">
                     <button
-                      onClick={() => setIsEditing(false)}
+                      onClick={() => {
+                        setIsEditing(false);
+                        setFormErrors({});
+                        // Reset form to original values
+                        setEditForm({
+                          fullName: profile.fullName,
+                          email: profile.email || '',
+                          bio: profile.bio || '',
+                          address: {
+                            street: profile.address?.street || '',
+                            city: profile.address?.city || '',
+                            district: profile.address?.district || '',
+                            postalCode: profile.address?.postalCode || ''
+                          },
+                          experience: profile.experience || 0,
+                          hourlyRate: profile.hourlyRate || 0,
+                          skills: profile.skills || []
+                        });
+                      }}
                       className="px-4 py-2 text-text-secondary border border-gray-300 rounded-lg hover:bg-background-light transition-colors"
                     >
                       Cancel
@@ -338,15 +452,22 @@ function ProfileContent() {
                 <div className="grid md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-text-secondary mb-2">
-                      Full Name
+                      Full Name *
                     </label>
                     {isEditing ? (
-                      <input
-                        type="text"
-                        value={editForm.fullName}
-                        onChange={(e) => setEditForm({...editForm, fullName: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                      />
+                      <div>
+                        <input
+                          type="text"
+                          value={editForm.fullName}
+                          onChange={(e) => setEditForm({...editForm, fullName: e.target.value})}
+                          className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary ${
+                            formErrors.fullName ? 'border-warning' : 'border-gray-300'
+                          }`}
+                        />
+                        {formErrors.fullName && (
+                          <p className="text-warning text-sm mt-1">{formErrors.fullName}</p>
+                        )}
+                      </div>
                     ) : (
                       <p className="text-text-primary">{profile.fullName}</p>
                     )}
@@ -357,15 +478,104 @@ function ProfileContent() {
                       Email
                     </label>
                     {isEditing ? (
-                      <input
-                        type="email"
-                        value={editForm.email}
-                        onChange={(e) => setEditForm({...editForm, email: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                      />
+                      <div>
+                        <input
+                          type="email"
+                          value={editForm.email}
+                          onChange={(e) => setEditForm({...editForm, email: e.target.value})}
+                          className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary ${
+                            formErrors.email ? 'border-warning' : 'border-gray-300'
+                          }`}
+                        />
+                        {formErrors.email && (
+                          <p className="text-warning text-sm mt-1">{formErrors.email}</p>
+                        )}
+                      </div>
                     ) : (
                       <p className="text-text-primary">{profile.email || 'Not provided'}</p>
                     )}
+                  </div>
+                </div>
+
+                {/* Address */}
+                <div>
+                  <h4 className="text-lg font-semibold text-text-primary mb-4">Address</h4>
+                  <div className="grid md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-text-secondary mb-2">
+                        Street Address
+                      </label>
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          value={editForm.address.street}
+                          onChange={(e) => setEditForm({
+                            ...editForm, 
+                            address: {...editForm.address, street: e.target.value}
+                          })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                        />
+                      ) : (
+                        <p className="text-text-primary">{profile.address?.street || 'Not provided'}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-text-secondary mb-2">
+                        City
+                      </label>
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          value={editForm.address.city}
+                          onChange={(e) => setEditForm({
+                            ...editForm, 
+                            address: {...editForm.address, city: e.target.value}
+                          })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                        />
+                      ) : (
+                        <p className="text-text-primary">{profile.address?.city || 'Not provided'}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-text-secondary mb-2">
+                        District
+                      </label>
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          value={editForm.address.district}
+                          onChange={(e) => setEditForm({
+                            ...editForm, 
+                            address: {...editForm.address, district: e.target.value}
+                          })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                        />
+                      ) : (
+                        <p className="text-text-primary">{profile.address?.district || 'Not provided'}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-text-secondary mb-2">
+                        Postal Code
+                      </label>
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          value={editForm.address.postalCode}
+                          onChange={(e) => setEditForm({
+                            ...editForm, 
+                            address: {...editForm.address, postalCode: e.target.value}
+                          })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                        />
+                      ) : (
+                        <p className="text-text-primary">{profile.address?.postalCode || 'Not provided'}</p>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -375,13 +585,20 @@ function ProfileContent() {
                     Bio
                   </label>
                   {isEditing ? (
-                    <textarea
-                      value={editForm.bio}
-                      onChange={(e) => setEditForm({...editForm, bio: e.target.value})}
-                      rows={3}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                      placeholder="Tell us about yourself..."
-                    />
+                    <div>
+                      <textarea
+                        value={editForm.bio}
+                        onChange={(e) => setEditForm({...editForm, bio: e.target.value})}
+                        rows={3}
+                        className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary ${
+                          formErrors.bio ? 'border-warning' : 'border-gray-300'
+                        }`}
+                        placeholder="Tell us about yourself..."
+                      />
+                      {formErrors.bio && (
+                        <p className="text-warning text-sm mt-1">{formErrors.bio}</p>
+                      )}
+                    </div>
                   ) : (
                     <p className="text-text-primary">{profile.bio || 'No bio provided'}</p>
                   )}
@@ -396,38 +613,182 @@ function ProfileContent() {
                         <label className="block text-sm font-medium text-text-secondary mb-2">
                           Experience (Years)
                         </label>
-                        <p className="text-text-primary">{profile.experience || 'Not specified'}</p>
+                        {isEditing ? (
+                          <div>
+                            <input
+                              type="number"
+                              min="0"
+                              max="50"
+                              value={editForm.experience}
+                              onChange={(e) => setEditForm({...editForm, experience: parseInt(e.target.value) || 0})}
+                              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary ${
+                                formErrors.experience ? 'border-warning' : 'border-gray-300'
+                              }`}
+                            />
+                            {formErrors.experience && (
+                              <p className="text-warning text-sm mt-1">{formErrors.experience}</p>
+                            )}
+                          </div>
+                        ) : (
+                          <p className="text-text-primary">{profile.experience || 'Not specified'}</p>
+                        )}
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-text-secondary mb-2">
-                          Hourly Rate
+                          Hourly Rate (৳)
                         </label>
-                        <p className="text-text-primary">{profile.hourlyRate ? `৳${profile.hourlyRate}` : 'Not specified'}</p>
+                        {isEditing ? (
+                          <div>
+                            <input
+                              type="number"
+                              min="0"
+                              value={editForm.hourlyRate}
+                              onChange={(e) => setEditForm({...editForm, hourlyRate: parseInt(e.target.value) || 0})}
+                              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary ${
+                                formErrors.hourlyRate ? 'border-warning' : 'border-gray-300'
+                              }`}
+                            />
+                            {formErrors.hourlyRate && (
+                              <p className="text-warning text-sm mt-1">{formErrors.hourlyRate}</p>
+                            )}
+                          </div>
+                        ) : (
+                          <p className="text-text-primary">{profile.hourlyRate ? `৳${profile.hourlyRate}` : 'Not specified'}</p>
+                        )}
                       </div>
                       <div className="md:col-span-2">
                         <label className="block text-sm font-medium text-text-secondary mb-2">
                           Skills
                         </label>
-                        <div className="flex flex-wrap gap-2">
-                          {profile.skills && profile.skills.length > 0 ? (
-                            profile.skills.map((skill, index) => (
-                              <span
-                                key={index}
-                                className="px-3 py-1 bg-primary/10 text-primary text-sm rounded-full"
-                              >
-                                {skill}
-                              </span>
-                            ))
-                          ) : (
-                            <p className="text-text-muted">No skills specified</p>
-                          )}
-                        </div>
+                        {isEditing ? (
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                            {AVAILABLE_SKILLS.map((skill) => (
+                              <label key={skill} className="flex items-center space-x-2 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={editForm.skills.includes(skill)}
+                                  onChange={() => handleSkillToggle(skill)}
+                                  className="rounded border-gray-300 text-primary focus:ring-primary"
+                                />
+                                <span className="text-sm text-text-primary">{skill}</span>
+                              </label>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="flex flex-wrap gap-2">
+                            {profile.skills && profile.skills.length > 0 ? (
+                              profile.skills.map((skill, index) => (
+                                <span
+                                  key={index}
+                                  className="px-3 py-1 bg-primary/10 text-primary text-sm rounded-full"
+                                >
+                                  {skill}
+                                </span>
+                              ))
+                            ) : (
+                              <p className="text-text-muted">No skills specified</p>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
                 )}
               </div>
             </div>
+
+            {/* Password Change Modal */}
+            {isChangingPassword && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                <div className="bg-background-white rounded-xl shadow-lg p-6 w-full max-w-md">
+                  <h3 className="text-xl font-semibold text-text-primary mb-4">Change Password</h3>
+                  
+                  {error && (
+                    <div className="mb-4 p-3 bg-warning/10 border border-warning/20 rounded-lg text-warning text-sm">
+                      {error}
+                    </div>
+                  )}
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-text-secondary mb-2">
+                        Current Password *
+                      </label>
+                      <input
+                        type="password"
+                        value={passwordForm.currentPassword}
+                        onChange={(e) => setPasswordForm({...passwordForm, currentPassword: e.target.value})}
+                        className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary ${
+                          formErrors.currentPassword ? 'border-warning' : 'border-gray-300'
+                        }`}
+                      />
+                      {formErrors.currentPassword && (
+                        <p className="text-warning text-sm mt-1">{formErrors.currentPassword}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-text-secondary mb-2">
+                        New Password *
+                      </label>
+                      <input
+                        type="password"
+                        value={passwordForm.newPassword}
+                        onChange={(e) => setPasswordForm({...passwordForm, newPassword: e.target.value})}
+                        className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary ${
+                          formErrors.newPassword ? 'border-warning' : 'border-gray-300'
+                        }`}
+                      />
+                      {formErrors.newPassword && (
+                        <p className="text-warning text-sm mt-1">{formErrors.newPassword}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-text-secondary mb-2">
+                        Confirm New Password *
+                      </label>
+                      <input
+                        type="password"
+                        value={passwordForm.confirmPassword}
+                        onChange={(e) => setPasswordForm({...passwordForm, confirmPassword: e.target.value})}
+                        className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary ${
+                          formErrors.confirmPassword ? 'border-warning' : 'border-gray-300'
+                        }`}
+                      />
+                      {formErrors.confirmPassword && (
+                        <p className="text-warning text-sm mt-1">{formErrors.confirmPassword}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 mt-6">
+                    <button
+                      onClick={() => {
+                        setIsChangingPassword(false);
+                        setPasswordForm({
+                          currentPassword: '',
+                          newPassword: '',
+                          confirmPassword: ''
+                        });
+                        setFormErrors({});
+                        setError('');
+                      }}
+                      className="flex-1 px-4 py-2 text-text-secondary border border-gray-300 rounded-lg hover:bg-background-light transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handlePasswordChange}
+                      disabled={passwordLoading}
+                      className="flex-1 px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent-dark transition-colors disabled:opacity-50"
+                    >
+                      {passwordLoading ? 'Changing...' : 'Change Password'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Quick Actions */}
             <div className="bg-background-white rounded-xl shadow-lg p-6">
