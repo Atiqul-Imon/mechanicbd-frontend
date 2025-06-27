@@ -114,7 +114,7 @@ export default function Header() {
                     <Link href="/bookings" className="block px-4 py-2 text-sm text-[var(--color-primary)] hover:bg-[var(--color-bg-light)] hover:text-accent transition-colors">My Bookings</Link>
                     <button 
                       onClick={handleLogout}
-                      className="block w-full text-left px-4 py-2 text-sm text-warning hover:bg-[var(--color-bg-light)] hover:text-accent transition-colors"
+                      className="block w-full text-left px-4 py-2 text-sm !text-white hover:bg-[var(--color-bg-light)] hover:text-accent transition-colors"
                     >
                       Logout
                     </button>
@@ -220,7 +220,7 @@ export default function Header() {
               </Link>
               <button
                 onClick={handleLogout}
-                className="block w-full text-left py-3 px-4 font-medium text-warning hover:text-accent transition-all duration-200 transform hover:scale-105"
+                className="block w-full text-left py-3 px-4 font-medium !text-white hover:text-accent transition-all duration-200 transform hover:scale-105"
               >
                 Logout
               </button>

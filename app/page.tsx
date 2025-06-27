@@ -238,14 +238,16 @@ export default function Home() {
       </section>
 
       {/* CTA Section */}
-      <section className="bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-primary-dark)] text-white py-20 px-4">
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">Ready to Get Started?</h2>
-          <p className="text-xl mb-10 text-white max-w-2xl mx-auto">Join thousands of satisfied customers who trust Mechanic BD for their service needs</p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+      <section className="bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-primary-dark)] text-white py-20 px-4 relative overflow-hidden">
+        {/* Overlay for contrast */}
+        <div className="absolute inset-0 bg-black/30 z-0 pointer-events-none" />
+        <div className="max-w-4xl mx-auto text-center relative z-10">
+          <h2 className="text-4xl md:text-5xl font-semibold !text-white mb-4 opacity-100 drop-shadow-[0_2px_8px_rgba(0,0,0,1)]">Ready to Get Started?</h2>
+          <p className="text-xl mb-10 text-white max-w-2xl mx-auto opacity-100 drop-shadow-[0_2px_8px_rgba(0,0,0,1)]">Join thousands of satisfied customers who trust Mechanic BD for their service needs</p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center mt-8">
             <Link
               href="/register"
-              className="bg-accent hover:bg-accent-hover text-[var(--color-primary-dark)] px-8 py-4 rounded-full font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+              className="bg-accent hover:bg-accent-hover text-white px-8 py-4 rounded-full font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
             >
               Sign Up Now
             </Link>

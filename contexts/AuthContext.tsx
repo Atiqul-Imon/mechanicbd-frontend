@@ -8,6 +8,7 @@ interface User {
   phoneNumber: string;
   role: 'customer' | 'mechanic' | 'admin';
   isActive: boolean;
+  isAvailable?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -64,7 +65,8 @@ const validateUserData = (userData: any): userData is User => {
     typeof userData.phoneNumber === 'string' &&
     typeof userData.role === 'string' &&
     validRoles.includes(userData.role) &&
-    typeof userData.isActive === 'boolean'
+    typeof userData.isActive === 'boolean' &&
+    (typeof userData.isAvailable === 'boolean' || userData.isAvailable === undefined)
   );
 };
 
@@ -140,6 +142,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       phoneNumber: userData.phoneNumber,
       role: userData.role,
       isActive: userData.isActive,
+      isAvailable: userData.isAvailable,
       createdAt: userData.createdAt,
       updatedAt: userData.updatedAt
     };

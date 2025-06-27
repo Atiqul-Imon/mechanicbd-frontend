@@ -258,7 +258,7 @@ function ProfileContent() {
                     </span>
                   )}
                 </div>
-                <h2 className="text-xl font-semibold">{profile.fullName}</h2>
+                <h2 className="text-xl font-semibold !text-white">{profile.fullName}</h2>
                 <p className="text-accent capitalize">{profile.role}</p>
                 {profile.isVerified && (
                   <div className="flex items-center justify-center gap-1 mt-2">

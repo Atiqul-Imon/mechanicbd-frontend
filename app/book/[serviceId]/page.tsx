@@ -88,6 +88,7 @@ export default function BookingPage() {
       ...prev,
       [name]: value
     }));
+    setError(''); // Clear error on input change
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -116,7 +117,7 @@ export default function BookingPage() {
       const response = await post('/bookings', bookingData);
       router.push(`/booking/confirmation/${response.data.data.booking._id}`);
     } catch (err: any) {
-      const errorMessage = err.response?.data?.error || err.message || 'Failed to create booking';
+      const errorMessage = err.response?.data?.message || 'Failed to create booking. Please try again.';
       setError(errorMessage);
     } finally {
       setSubmitting(false);
@@ -186,8 +187,8 @@ export default function BookingPage() {
               <h1 className="text-3xl font-bold text-[var(--color-text-main)] mb-6">Book Service</h1>
               
               {error && (
-                <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-800">
-                  <p>{error}</p>
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm text-center">
+                  {error}
                 </div>
               )}
 

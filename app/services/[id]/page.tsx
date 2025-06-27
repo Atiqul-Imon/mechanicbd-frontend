@@ -52,6 +52,7 @@ export default function ServiceDetailPage() {
   const [eligible, setEligible] = useState(false);
   const [eligibilityChecked, setEligibilityChecked] = useState(false);
   const [eligibilityMsg, setEligibilityMsg] = useState('');
+  const [loginHref, setLoginHref] = useState('/login');
 
   useEffect(() => {
     const fetchService = async () => {
@@ -126,6 +127,12 @@ export default function ServiceDetailPage() {
     checkEligibility();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, user, params.id, reviews]);
+
+  useEffect(() => {
+    import('../../../utils/api').then(mod => {
+      setLoginHref(`/login?redirect=${encodeURIComponent(mod.getCurrentPathWithQuery())}`);
+    });
+  }, []);
 
   const handleReviewSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -242,14 +249,14 @@ export default function ServiceDetailPage() {
                 {isAuthenticated ? (
                   <Link
                     href={`/book/${service._id}`}
-                    className="block w-full bg-[var(--color-primary)] text-white text-center py-3 rounded-lg hover:bg-[var(--color-primary-dark)] transition-all duration-200 font-medium mb-4 transform hover:scale-105"
+                    className="block w-full bg-[var(--color-primary)] !text-white text-center py-3 rounded-lg hover:bg-[var(--color-primary-dark)] transition-all duration-200 font-medium mb-4 transform hover:scale-105"
                   >
                     Book Now
                   </Link>
                 ) : (
                   <Link
-                    href="/login"
-                    className="block w-full bg-[var(--color-primary)] text-white text-center py-3 rounded-lg hover:bg-[var(--color-primary-dark)] transition-all duration-200 font-medium mb-4 transform hover:scale-105"
+                    href={loginHref}
+                    className="block w-full bg-[var(--color-primary)] !text-white text-center py-3 rounded-lg hover:bg-[var(--color-primary-dark)] transition-all duration-200 font-medium mb-4 transform hover:scale-105"
                   >
                     Login to Book
                   </Link>

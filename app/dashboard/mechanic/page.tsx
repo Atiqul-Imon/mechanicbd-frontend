@@ -6,6 +6,7 @@ import ProtectedRoute from '../../../components/ProtectedRoute';
 import Link from 'next/link';
 import PageLoader from '../../../components/PageLoader';
 import ErrorMessage from '../../../components/ErrorMessage';
+import { Switch } from '@headlessui/react';
 
 interface Booking {
   _id: string;
@@ -52,7 +53,7 @@ interface Stats {
 }
 
 function MechanicDashboardContent() {
-  const { user } = useAuth();
+  const { user, login } = useAuth();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -63,6 +64,11 @@ function MechanicDashboardContent() {
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [rescheduleResponse, setRescheduleResponse] = useState('');
   const [processingReschedule, setProcessingReschedule] = useState(false);
+  const [availability, setAvailability] = useState(user?.isAvailable ?? true);
+  const [availabilityLoading, setAvailabilityLoading] = useState(false);
+  const [availabilityError, setAvailabilityError] = useState('');
+  const [showAvailabilityConfirm, setShowAvailabilityConfirm] = useState(false);
+  const [pendingAvailabilityChange, setPendingAvailabilityChange] = useState<boolean | null>(null);
 
   useEffect(() => {
     fetchBookings();
@@ -239,6 +245,50 @@ function MechanicDashboardContent() {
     }
   };
 
+  const handleToggleAvailability = async () => {
+    const newAvailability = !availability;
+    
+    // If pausing, show confirmation dialog
+    if (!newAvailability) {
+      setPendingAvailabilityChange(newAvailability);
+      setShowAvailabilityConfirm(true);
+      return;
+    }
+    
+    // If resuming, proceed directly
+    await updateAvailability(newAvailability);
+  };
+
+  const updateAvailability = async (newAvailability: boolean) => {
+    setAvailabilityLoading(true);
+    setAvailabilityError('');
+    try {
+      const response = await api.patch('/users/me/availability', { isAvailable: newAvailability });
+      setAvailability(response.data.data.isAvailable);
+      // Update AuthContext user
+      if (user) {
+        login(localStorage.getItem('token') || '', { ...user, isAvailable: response.data.data.isAvailable });
+      }
+    } catch (err: any) {
+      setAvailabilityError(err.response?.data?.message || 'Failed to update availability');
+    } finally {
+      setAvailabilityLoading(false);
+    }
+  };
+
+  const confirmAvailabilityChange = async () => {
+    if (pendingAvailabilityChange !== null) {
+      await updateAvailability(pendingAvailabilityChange);
+      setShowAvailabilityConfirm(false);
+      setPendingAvailabilityChange(null);
+    }
+  };
+
+  const cancelAvailabilityChange = () => {
+    setShowAvailabilityConfirm(false);
+    setPendingAvailabilityChange(null);
+  };
+
   if (loading) return <PageLoader message="Loading your dashboard..." />;
   if (error) return <ErrorMessage message={error} />;
 
@@ -249,6 +299,23 @@ function MechanicDashboardContent() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-[var(--color-primary)]">Mechanic Dashboard</h1>
           <p className="text-[var(--color-text-secondary)] mt-2">Welcome back, {user?.fullName}!</p>
+          {/* Single Toggle Button with Text */}
+          <button
+            type="button"
+            onClick={handleToggleAvailability}
+            disabled={availabilityLoading}
+            className={`flex items-center gap-2 px-4 py-2 rounded-full font-semibold shadow transition-colors focus:outline-none border-none
+              ${availability ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}
+              ${availabilityLoading ? 'opacity-60 cursor-not-allowed' : ''}`}
+            aria-pressed={availability}
+          >
+            <span
+              className={`inline-block w-5 h-5 rounded-full border transition-all duration-200
+                ${availability ? 'bg-green-400 border-green-500' : 'bg-gray-400 border-gray-500'}`}
+            ></span>
+            {availability ? 'Available for bookings' : 'Paused (not accepting bookings)'}
+            {availabilityLoading && <span className="ml-2 text-xs text-gray-400">Updating...</span>}
+          </button>
         </div>
 
         {/* Stats Cards */}
@@ -314,7 +381,7 @@ function MechanicDashboardContent() {
         <div className="bg-white rounded-xl shadow-lg p-6">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold text-[var(--color-primary-dark)]">My Bookings</h2>
-            <Link href="/services" className="bg-[var(--color-primary)] text-white px-4 py-2 rounded-lg font-medium hover:bg-[var(--color-primary-dark)] transition">
+            <Link href="/services" className="bg-[var(--color-primary)] !text-white px-4 py-2 rounded-lg font-medium hover:bg-[var(--color-primary-dark)] transition">
               Manage Services
             </Link>
           </div>
@@ -324,7 +391,7 @@ function MechanicDashboardContent() {
               <div className="text-6xl mb-4">🔧</div>
               <h3 className="text-xl font-semibold mb-2">No bookings yet</h3>
               <p className="text-[var(--color-text-secondary)] mb-4">You haven't received any bookings yet. Make sure your services are active!</p>
-              <Link href="/services" className="bg-accent text-white px-6 py-3 rounded-lg font-medium hover:bg-[var(--color-primary-dark)] transition">
+              <Link href="/services" className="bg-accent !text-white px-6 py-3 rounded-lg font-medium hover:bg-[var(--color-primary-dark)] transition">
                 Manage Services
               </Link>
             </div>
@@ -477,6 +544,60 @@ function MechanicDashboardContent() {
                   className="flex-1 bg-green-100 text-green-900 px-4 py-2 rounded-lg font-medium hover:bg-green-200 transition disabled:opacity-50"
                 >
                   {processingReschedule ? 'Processing...' : 'Accept'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Availability Confirmation Modal */}
+        {showAvailabilityConfirm && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-yellow-100 rounded-lg">
+                  <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-semibold">Pause Availability?</h3>
+              </div>
+              <div className="mb-6">
+                <p className="text-gray-600 mb-3">
+                  When you pause your availability:
+                </p>
+                <ul className="text-sm text-gray-600 space-y-2">
+                  <li className="flex items-start gap-2">
+                    <span className="text-red-500 mt-1">•</span>
+                    <span>Your services will not appear in search results</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-red-500 mt-1">•</span>
+                    <span>Customers cannot book new appointments with you</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-blue-500 mt-1">•</span>
+                    <span>Existing bookings will remain unaffected</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-green-500 mt-1">•</span>
+                    <span>You can resume availability anytime</span>
+                  </li>
+                </ul>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={cancelAvailabilityChange}
+                  className="flex-1 bg-gray-100 text-gray-900 px-4 py-2 rounded-lg font-medium hover:bg-gray-200 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmAvailabilityChange}
+                  disabled={availabilityLoading}
+                  className="flex-1 bg-yellow-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-yellow-600 transition disabled:opacity-50"
+                >
+                  {availabilityLoading ? 'Pausing...' : 'Yes, Pause Availability'}
                 </button>
               </div>
             </div>

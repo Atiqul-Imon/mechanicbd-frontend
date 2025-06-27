@@ -199,4 +199,10 @@ export const requestReschedule = async (bookingId: string) => {
   return response.data;
 };
 
+// Utility to get current full path (for redirect)
+export const getCurrentPathWithQuery = () => {
+  if (typeof window === 'undefined') return '/';
+  return window.location.pathname + window.location.search + window.location.hash;
+};
+
 export default api;

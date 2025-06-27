@@ -168,7 +168,13 @@ export default function BookingConfirmationPage() {
                 {/* Location */}
                 <div className="border-t border-gray-200 pt-6">
                   <h4 className="text-lg font-semibold text-[var(--color-text-main)] mb-4">Service Location</h4>
-                  <p className="text-[var(--color-text-main)]">{booking.serviceLocation}</p>
+                  <p className="text-[var(--color-text-main)]">
+                    {typeof booking.serviceLocation === 'object' && booking.serviceLocation !== null && 'address' in booking.serviceLocation
+                      ? booking.serviceLocation.address
+                      : typeof booking.serviceLocation === 'string'
+                        ? booking.serviceLocation
+                        : 'N/A'}
+                  </p>
                 </div>
 
                 {/* Additional Information */}
@@ -280,7 +286,7 @@ export default function BookingConfirmationPage() {
                     </p>
                     <Link
                       href={`/payment/${booking._id}`}
-                      className="inline-block bg-[var(--color-primary)] text-white py-2 px-6 rounded-lg hover:bg-[var(--color-primary-dark)] transition-colors font-medium"
+                      className="inline-block bg-[var(--color-primary)] !text-white py-2 px-6 rounded-lg hover:bg-[var(--color-primary-dark)] transition-colors font-medium"
                     >
                       Pay Now (Optional)
                     </Link>
@@ -318,7 +324,7 @@ export default function BookingConfirmationPage() {
                     </p>
                     <Link
                       href={`/payment/${booking._id}`}
-                      className="inline-block bg-red-600 text-white py-2 px-6 rounded-lg hover:bg-red-700 transition-colors font-medium"
+                      className="inline-block bg-red-600 !text-white py-2 px-6 rounded-lg hover:bg-red-700 transition-colors font-medium"
                     >
                       Pay Now
                     </Link>
@@ -334,7 +340,7 @@ export default function BookingConfirmationPage() {
                     </p>
                     <Link
                       href={`/services/${booking.service._id}`}
-                      className="inline-block bg-green-600 text-white py-2 px-6 rounded-lg hover:bg-green-700 transition-colors font-medium"
+                      className="inline-block bg-green-600 !text-white py-2 px-6 rounded-lg hover:bg-green-700 transition-colors font-medium"
                     >
                       Leave Review
                     </Link>
@@ -346,10 +352,10 @@ export default function BookingConfirmationPage() {
             {/* Action Buttons */}
             <div className="space-y-3">
               <Link
-                href="/dashboard/customer"
-                className="block w-full bg-[var(--color-primary)] text-white py-3 rounded-lg hover:bg-[var(--color-primary-dark)] transition-all duration-200 text-center font-medium transform hover:scale-105"
+                href={`/dashboard/customer/booking/${booking._id}`}
+                className="inline-block bg-[var(--color-primary)] !text-white py-2 px-6 rounded-lg hover:bg-[var(--color-primary-dark)] transition-colors font-medium mt-6"
               >
-                View My Bookings
+                View My Booking
               </Link>
               <Link
                 href="/services"

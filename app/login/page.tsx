@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { post } from '../../utils/api';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -9,6 +9,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { login } = useAuth();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -25,7 +26,13 @@ export default function LoginPage() {
         : { phoneNumber: form.identifier, password: form.password };
       const response = await post('/auth/login', data);
       login(response.data.token, response.data.data.user);
-      router.push('/');
+      // Handle robust redirect
+      const redirect = searchParams.get('redirect');
+      if (redirect && redirect.startsWith('/')) {
+        router.replace(redirect);
+      } else {
+        router.replace('/');
+      }
     } catch (err: any) {
       setError(err.response?.data?.message || 'Login failed');
     } finally {

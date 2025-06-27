@@ -121,7 +121,7 @@ export default function ServicesPage() {
       <div className="bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-primary-dark)] text-white py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
-            <h1 className="text-4xl md:text-5xl font-bold mb-4 font-poppins text-white drop-shadow-lg">
+            <h1 className="text-4xl md:text-5xl font-bold mb-4 font-poppins !text-white drop-shadow-lg">
               Find Professional Services
             </h1>
             <p className="text-xl md:text-2xl mb-8 text-accent font-hind">
@@ -235,7 +235,7 @@ export default function ServicesPage() {
                   )}
                   <Link 
                     href={`/services/${service._id}`} 
-                    className="block w-full bg-[var(--color-primary)] text-white text-center py-3 rounded-lg hover:bg-[var(--color-primary-dark)] transition-all duration-200 font-medium transform hover:scale-105"
+                    className="block w-full bg-[var(--color-primary)] !text-white text-center py-3 rounded-lg hover:bg-[var(--color-primary-dark)] transition-all duration-200 font-medium transform hover:scale-105"
                   >
                     View Details & Book
                   </Link>
