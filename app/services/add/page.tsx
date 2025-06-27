@@ -66,6 +66,14 @@ export default function AddServicePage() {
     }
   };
 
+  // Helper to display duration in min/hours
+  const getDurationDisplay = (min: string) => {
+    const val = Number(min);
+    if (!val || val < 15) return '';
+    if (val < 60) return `${val} minutes`;
+    return `${(val / 60).toFixed(val % 60 === 0 ? 0 : 1)} hours`;
+  };
+
   return (
     <div className="max-w-lg mx-auto mt-10 p-6 bg-white rounded shadow">
       <h1 className="text-2xl font-bold mb-4">Add New Service</h1>

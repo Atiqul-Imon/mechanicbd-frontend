@@ -27,6 +27,7 @@ interface Booking {
   status: string;
   totalAmount: number;
   customerRating?: number;
+  paymentStatus: string;
 }
 
 function CustomerDashboardContent() {
@@ -66,11 +67,19 @@ function CustomerDashboardContent() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'pending': return 'bg-yellow-100 text-yellow-900';
       case 'confirmed': return 'bg-blue-100 text-blue-900';
       case 'in_progress': return 'bg-purple-100 text-purple-900';
       case 'completed': return 'bg-green-100 text-green-900';
       case 'cancelled': return 'bg-red-100 text-red-900';
+      default: return 'bg-gray-100 text-gray-900';
+    }
+  };
+
+  const getPaymentStatusBadge = (paymentStatus: string) => {
+    switch (paymentStatus) {
+      case 'paid': return 'bg-green-100 text-green-900';
+      case 'pending': return 'bg-yellow-100 text-yellow-900';
+      case 'failed': return 'bg-red-100 text-red-900';
       default: return 'bg-gray-100 text-gray-900';
     }
   };
@@ -97,18 +106,42 @@ function CustomerDashboardContent() {
                   <div className="flex-1">
                     <h2 className="text-xl font-semibold text-[var(--color-primary-dark)]">{booking.service.title}</h2>
                     <div className="flex items-center gap-2 mt-1">
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusBadge(booking.status)}`}>{booking.status.replace('_', ' ')}</span>
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusBadge(booking.status)}`}>
+                        {booking.status.replace('_', ' ')}
+                      </span>
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${getPaymentStatusBadge(booking.paymentStatus)}`}>
+                        {booking.paymentStatus}
+                      </span>
                       <span className="text-sm text-[var(--color-text-secondary)]">৳{booking.totalAmount}</span>
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-sm text-[var(--color-text-muted)]">{new Date(booking.scheduledDate).toLocaleDateString()} {booking.scheduledTime}</div>
+                    <div className="text-sm text-[var(--color-text-muted)]">{new Date(booking.scheduledDate).toISOString().slice(0, 10)} {booking.scheduledTime}</div>
                     <div className="text-xs text-[var(--color-text-secondary)]">with {booking.mechanic.fullName}</div>
                   </div>
                 </div>
                 <div className="flex gap-2 mt-2">
                   <Link href={`/dashboard/customer/booking/${booking._id}`} className="bg-[var(--color-primary)] text-white px-4 py-2 rounded-lg font-medium hover:bg-[var(--color-primary-dark)] transition">View Details</Link>
-                  {booking.status === 'pending' && (
+                  
+                  {booking.status === 'confirmed' && booking.paymentStatus === 'pending' && (
+                    <Link href={`/payment/${booking._id}`} className="bg-green-100 text-green-900 px-4 py-2 rounded-lg font-medium hover:bg-green-200 transition">
+                      Pay Now
+                    </Link>
+                  )}
+                  
+                  {booking.status === 'completed' && booking.paymentStatus === 'pending' && (
+                    <Link href={`/payment/${booking._id}`} className="bg-red-100 text-red-900 px-4 py-2 rounded-lg font-medium hover:bg-red-200 transition">
+                      Pay Required
+                    </Link>
+                  )}
+                  
+                  {booking.status === 'completed' && booking.paymentStatus === 'paid' && (
+                    <Link href={`/services/${booking.service._id}`} className="bg-blue-100 text-blue-900 px-4 py-2 rounded-lg font-medium hover:bg-blue-200 transition">
+                      Leave Review
+                    </Link>
+                  )}
+                  
+                  {booking.status === 'confirmed' && (
                     <button
                       onClick={() => handleCancel(booking._id)}
                       className="bg-red-100 text-red-900 px-4 py-2 rounded-lg font-medium hover:bg-red-200 transition disabled:opacity-50"

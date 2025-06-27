@@ -92,24 +92,31 @@ export default function BookingPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!service) return;
-    
+
+    // Frontend validation
+    if (!formData.scheduledDate || !formData.scheduledTime || !formData.serviceLocation) {
+      setError('Please fill in all required fields.');
+      return;
+    }
+
     setSubmitting(true);
     setError('');
-    
+
     try {
       const bookingData = {
         serviceId: service._id,
-        ...formData
+        scheduledDate: formData.scheduledDate,
+        scheduledTime: formData.scheduledTime,
+        serviceLocation: { address: formData.serviceLocation }, // Always send as object
+        customerNotes: formData.customerNotes,
+        serviceRequirements: formData.serviceRequirements
       };
-      
+
       const response = await post('/bookings', bookingData);
-      
-      // Redirect to booking confirmation
       router.push(`/booking/confirmation/${response.data.data.booking._id}`);
-    } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to create booking';
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.error || err.message || 'Failed to create booking';
       setError(errorMessage);
     } finally {
       setSubmitting(false);

@@ -33,6 +33,7 @@ interface Booking {
   customerNotes?: string;
   serviceRequirements?: string;
   createdAt: string;
+  paymentStatus: string;
 }
 
 export default function BookingConfirmationPage() {
@@ -124,7 +125,7 @@ export default function BookingConfirmationPage() {
                   <div>
                     <h3 className="text-lg font-semibold text-[var(--color-text-main)]">Booking #{booking.bookingNumber}</h3>
                     <p className="text-sm text-[var(--color-text-secondary)]">
-                      Created on {new Date(booking.createdAt).toLocaleDateString()}
+                      Created on {new Date(booking.createdAt).toISOString().slice(0, 10)}
                     </p>
                   </div>
                   <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full ${getStatusColor(booking.status)}`}>
@@ -152,7 +153,7 @@ export default function BookingConfirmationPage() {
                     <div>
                       <span className="text-sm text-[var(--color-text-secondary)]">Date:</span>
                       <p className="font-medium text-[var(--color-text-main)]">
-                        {new Date(booking.scheduledDate).toLocaleDateString()}
+                        {new Date(booking.scheduledDate).toISOString().slice(0, 10)}
                       </p>
                     </div>
                     <div>
@@ -266,9 +267,80 @@ export default function BookingConfirmationPage() {
                   </div>
                 </div>
               </div>
-              <p className="text-sm text-[var(--color-text-muted)] mt-3">
-                Payment will be collected after service completion
-              </p>
+              
+              {/* Payment Status and Actions (Arogga-style) */}
+              {booking.status === 'confirmed' && booking.paymentStatus === 'pending' && (
+                <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="text-center">
+                    <p className="text-sm text-blue-800 mb-3">
+                      <strong>Payment Options</strong>
+                    </p>
+                    <p className="text-xs text-blue-600 mb-4">
+                      You can pay now or anytime before service completion
+                    </p>
+                    <Link
+                      href={`/payment/${booking._id}`}
+                      className="inline-block bg-[var(--color-primary)] text-white py-2 px-6 rounded-lg hover:bg-[var(--color-primary-dark)] transition-colors font-medium"
+                    >
+                      Pay Now (Optional)
+                    </Link>
+                    <p className="text-xs text-blue-500 mt-2">
+                      Service will proceed regardless of payment timing
+                    </p>
+                  </div>
+                </div>
+              )}
+              
+              {booking.status === 'confirmed' && booking.paymentStatus === 'paid' && (
+                <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <p className="text-sm text-green-800 text-center">
+                    <strong>✅ Payment completed</strong>
+                  </p>
+                </div>
+              )}
+              
+              {booking.status === 'in_progress' && (
+                <div className="mt-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                  <p className="text-sm text-purple-800">
+                    <strong>🔧 Service in Progress:</strong> Your mechanic is on the way
+                  </p>
+                </div>
+              )}
+              
+              {booking.status === 'completed' && booking.paymentStatus === 'pending' && (
+                <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <div className="text-center">
+                    <p className="text-sm text-red-800 font-medium mb-2">
+                      ⚠️ Payment Required
+                    </p>
+                    <p className="text-xs text-red-600 mb-3">
+                      Service completed! Complete payment to leave review
+                    </p>
+                    <Link
+                      href={`/payment/${booking._id}`}
+                      className="inline-block bg-red-600 text-white py-2 px-6 rounded-lg hover:bg-red-700 transition-colors font-medium"
+                    >
+                      Pay Now
+                    </Link>
+                  </div>
+                </div>
+              )}
+              
+              {booking.status === 'completed' && booking.paymentStatus === 'paid' && (
+                <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="text-center">
+                    <p className="text-sm text-green-800 font-medium mb-2">
+                      ✅ Payment completed
+                    </p>
+                    <Link
+                      href={`/services/${booking.service._id}`}
+                      className="inline-block bg-green-600 text-white py-2 px-6 rounded-lg hover:bg-green-700 transition-colors font-medium"
+                    >
+                      Leave Review
+                    </Link>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Action Buttons */}

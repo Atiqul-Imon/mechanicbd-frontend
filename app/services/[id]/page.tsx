@@ -1,11 +1,12 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
-import { get } from '../../../utils/api';
+import { useParams, useRouter } from 'next/navigation';
+import { get, post } from '../../../utils/api';
 import { useAuth } from '../../../contexts/AuthContext';
 import Link from 'next/link';
 import PageLoader from '../../../components/PageLoader';
 import ErrorMessage from '../../../components/ErrorMessage';
+import { Star, StarBorder } from '@mui/icons-material';
 
 interface Service {
   _id: string;
@@ -23,17 +24,38 @@ interface Service {
   };
 }
 
+interface Review {
+  _id: string;
+  customer: { fullName: string; profilePhoto?: string };
+  rating: number;
+  comment: string;
+  createdAt: string;
+  booking?: string;
+}
+
 export default function ServiceDetailPage() {
   const params = useParams();
-  const { isAuthenticated } = useAuth();
+  const router = useRouter();
+  const { user, isAuthenticated } = useAuth();
   const [service, setService] = useState<Service | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [reviewLoading, setReviewLoading] = useState(true);
+  const [reviewError, setReviewError] = useState('');
+  const [showForm, setShowForm] = useState(false);
+  const [rating, setRating] = useState(0);
+  const [comment, setComment] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [submitMsg, setSubmitMsg] = useState('');
+  // Eligibility state
+  const [eligible, setEligible] = useState(false);
+  const [eligibilityChecked, setEligibilityChecked] = useState(false);
+  const [eligibilityMsg, setEligibilityMsg] = useState('');
 
   useEffect(() => {
     const fetchService = async () => {
       if (!params.id) return;
-      
       setLoading(true);
       setError('');
       try {
@@ -46,9 +68,87 @@ export default function ServiceDetailPage() {
         setLoading(false);
       }
     };
-
     fetchService();
   }, [params.id]);
+
+  useEffect(() => {
+    if (!params.id) return;
+    setReviewLoading(true);
+    setReviewError('');
+    get(`/reviews/service/${params.id}`)
+      .then(res => setReviews(res.data.data.reviews))
+      .catch(() => setReviewError('Failed to load reviews'))
+      .finally(() => setReviewLoading(false));
+  }, [params.id]);
+
+  // Eligibility logic
+  useEffect(() => {
+    const checkEligibility = async () => {
+      setEligibilityChecked(false);
+      setEligible(false);
+      setEligibilityMsg('');
+      if (!isAuthenticated || !user) {
+        setEligibilityMsg('You must be logged in as a customer to write a review.');
+        setEligibilityChecked(true);
+        return;
+      }
+      if (user.role !== 'customer') {
+        setEligibilityMsg('Only customers can write reviews.');
+        setEligibilityChecked(true);
+        return;
+      }
+      try {
+        // Fetch user's completed bookings for this service
+        const res = await get(`/bookings?status=completed&service=${params.id}`);
+        const bookings = res.data.data.bookings || [];
+        // Find bookings by this user
+        const myBookings = bookings.filter((b: any) => b.customer && (b.customer._id === user._id));
+        if (myBookings.length === 0) {
+          setEligibilityMsg('You must complete a booking for this service to write a review.');
+          setEligibilityChecked(true);
+          return;
+        }
+        // Check if any of these bookings have not been reviewed by this user
+        const reviewedBookingIds = reviews.map(r => r.booking).filter(Boolean);
+        const unreviewed = myBookings.find((b: any) => !reviewedBookingIds.includes(b._id));
+        if (unreviewed) {
+          setEligible(true);
+          setEligibilityMsg('');
+        } else {
+          setEligibilityMsg('You have already reviewed your completed booking(s) for this service.');
+        }
+      } catch (err) {
+        setEligibilityMsg('Could not verify review eligibility.');
+      } finally {
+        setEligibilityChecked(true);
+      }
+    };
+    checkEligibility();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, user, params.id, reviews]);
+
+  const handleReviewSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    setSubmitMsg('');
+    try {
+      await post('/reviews', {
+        service: params.id,
+        rating,
+        comment,
+      });
+      setSubmitMsg('Review submitted!');
+      setRating(0);
+      setComment('');
+      setShowForm(false);
+      const res = await get(`/reviews/service/${params.id}`);
+      setReviews(res.data.data.reviews);
+    } catch (err: any) {
+      setSubmitMsg(err.response?.data?.message || 'Failed to submit review');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   if (loading) {
     return <PageLoader message="Loading service details..." />;
@@ -163,7 +263,7 @@ export default function ServiceDetailPage() {
 
             {/* Mechanic Info */}
             {service.mechanic && (
-              <div className="border-t border-gray-200 pt-8">
+              <div className="border-t border-gray-200 pt-8 mb-8">
                 <h3 className="text-xl font-semibold text-[var(--color-text-main)] mb-6">About the Mechanic</h3>
                 <div className="bg-[var(--color-bg-surface)] rounded-lg p-6">
                   <div className="flex items-center gap-4">
@@ -188,6 +288,95 @@ export default function ServiceDetailPage() {
                 </div>
               </div>
             )}
+
+            {/* Reviews Section */}
+            <div className="border-t border-gray-200 pt-8">
+              <h3 className="text-xl font-semibold text-[var(--color-text-main)] mb-6">Customer Reviews</h3>
+              {/* Average rating */}
+              {service.mechanic?.averageRating && (
+                <div className="flex items-center gap-2 mb-4">
+                  {[1,2,3,4,5].map(i => i <= Math.round(service.mechanic.averageRating!) ? (
+                    <Star key={i} className="text-yellow-400" />
+                  ) : (
+                    <StarBorder key={i} className="text-yellow-400" />
+                  ))}
+                  <span className="font-medium text-[var(--color-text-main)]">{service.mechanic.averageRating.toFixed(1)}</span>
+                  <span className="text-[var(--color-text-muted)]">({service.mechanic.totalReviews} reviews)</span>
+                </div>
+              )}
+              {/* Review eligibility and form */}
+              {eligibilityChecked && (
+                <div className="mb-6">
+                  {eligible ? (
+                    !showForm ? (
+                      <button
+                        className="bg-[var(--color-primary)] text-white px-6 py-2 rounded-lg font-semibold shadow hover:bg-[var(--color-primary-dark)] transition mb-2"
+                        onClick={() => setShowForm(true)}
+                      >
+                        Write a Review
+                      </button>
+                    ) : (
+                      <form onSubmit={handleReviewSubmit} className="mb-8 bg-[var(--color-bg-surface)] rounded-lg p-6 shadow">
+                        <div className="mb-4">
+                          <label className="block mb-1 font-medium">Your Rating</label>
+                          <div className="flex gap-1">
+                            {[1,2,3,4,5].map(i => (
+                              <button type="button" key={i} onClick={() => setRating(i)}>
+                                {i <= rating ? <Star className="text-yellow-400" /> : <StarBorder className="text-yellow-400" />}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="mb-4">
+                          <label className="block mb-1 font-medium">Comment</label>
+                          <textarea value={comment} onChange={e => setComment(e.target.value)} className="w-full border rounded px-3 py-2" rows={3} maxLength={1000} required />
+                        </div>
+                        {submitMsg && <div className="mb-2 text-sm text-red-500">{submitMsg}</div>}
+                        <button type="submit" className="bg-[var(--color-primary)] text-white px-6 py-2 rounded-lg font-semibold" disabled={submitting}>
+                          {submitting ? 'Submitting...' : 'Submit Review'}
+                        </button>
+                        <button type="button" className="ml-4 text-[var(--color-primary)] underline" onClick={() => setShowForm(false)} disabled={submitting}>Cancel</button>
+                      </form>
+                    )
+                  ) : (
+                    <div className="text-[var(--color-text-muted)] italic">{eligibilityMsg}</div>
+                  )}
+                </div>
+              )}
+              {/* Reviews list */}
+              {reviewLoading ? (
+                <div>Loading reviews...</div>
+              ) : reviewError ? (
+                <div className="text-red-500">{reviewError}</div>
+              ) : reviews.length === 0 ? (
+                <div className="text-[var(--color-text-muted)]">No reviews yet. Be the first to review this service!</div>
+              ) : (
+                <div className="space-y-6">
+                  {reviews.map(r => (
+                    <div key={r._id} className="bg-[var(--color-bg-surface)] rounded-lg p-4 shadow-sm flex gap-4 items-start">
+                      <div className="w-12 h-12 bg-[var(--color-primary)]/10 rounded-full flex items-center justify-center text-xl font-bold text-[var(--color-primary)]">
+                        {r.customer.fullName.charAt(0)}
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-medium text-[var(--color-text-main)]">{r.customer.fullName}</span>
+                          <span className="text-xs text-[var(--color-text-muted)]">{new Date(r.createdAt).toISOString().slice(0, 10)}</span>
+                        </div>
+                        <div className="flex items-center mb-1">
+                          {[1,2,3,4,5].map(i => i <= r.rating ? (
+                            <Star key={i} className="text-yellow-400 text-sm" fontSize="small" />
+                          ) : (
+                            <StarBorder key={i} className="text-yellow-400 text-sm" fontSize="small" />
+                          ))}
+                        </div>
+                        <div className="text-[var(--color-text-secondary)]">{r.comment}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            {/* End Reviews Section */}
           </div>
         </div>
       </div>

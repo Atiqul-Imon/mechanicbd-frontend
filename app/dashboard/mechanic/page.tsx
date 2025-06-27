@@ -6,6 +6,8 @@ import ProtectedRoute from '../../../components/ProtectedRoute';
 import Link from 'next/link';
 import PageLoader from '../../../components/PageLoader';
 import ErrorMessage from '../../../components/ErrorMessage';
+import { toast } from 'react-hot-toast';
+import { useRouter } from 'next/navigation';
 
 interface Booking {
   _id: string;
@@ -26,6 +28,7 @@ interface Booking {
   scheduledTime: string;
   status: string;
   totalAmount: number;
+  paymentStatus: string;
   customerRating?: number;
 }
 
@@ -45,26 +48,41 @@ function MechanicDashboardContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [completingId, setCompletingId] = useState<string | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
-    const fetchDashboardData = async () => {
-      setLoading(true);
-      setError('');
-      try {
-        const [bookingsRes, statsRes] = await Promise.all([
-          get('/bookings/mechanic'),
-          get('/users/stats')
-        ]);
-        setBookings(bookingsRes.data.data.bookings);
-        setStats(statsRes.data.data.stats);
-      } catch (err: any) {
-        setError(err.response?.data?.message || 'Failed to fetch dashboard data');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchDashboardData();
+    fetchBookings();
   }, []);
+
+  const fetchBookings = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        router.push('/login');
+        return;
+      }
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/bookings/mechanic`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setBookings(data.data.bookings);
+      } else {
+        setError('Failed to fetch bookings');
+      }
+    } catch (error) {
+      setError('Error fetching bookings');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleStatusUpdate = async (bookingId: string, newStatus: string) => {
     setUpdatingId(bookingId);
@@ -80,6 +98,37 @@ function MechanicDashboardContent() {
     }
   };
 
+  const handleCompleteService = async (bookingId: string) => {
+    if (!confirm('Are you sure you want to mark this service as completed?')) {
+      return;
+    }
+
+    setCompletingId(bookingId);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/bookings/${bookingId}/complete`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({})
+      });
+
+      if (response.ok) {
+        toast.success('Service marked as completed');
+        fetchBookings(); // Refresh the list
+      } else {
+        const error = await response.json();
+        toast.error(error.message || 'Failed to complete service');
+      }
+    } catch (error) {
+      toast.error('Error completing service');
+    } finally {
+      setCompletingId(null);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending': return 'bg-yellow-100 text-yellow-900';
@@ -87,6 +136,14 @@ function MechanicDashboardContent() {
       case 'in_progress': return 'bg-purple-100 text-purple-900';
       case 'completed': return 'bg-green-100 text-green-900';
       case 'cancelled': return 'bg-red-100 text-red-900';
+      default: return 'bg-gray-100 text-gray-900';
+    }
+  };
+
+  const getPaymentStatusBadge = (status: string) => {
+    switch (status) {
+      case 'paid': return 'bg-green-100 text-green-900';
+      case 'unpaid': return 'bg-yellow-100 text-yellow-900';
       default: return 'bg-gray-100 text-gray-900';
     }
   };
@@ -238,12 +295,15 @@ function MechanicDashboardContent() {
                         <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusBadge(booking.status)}`}>
                           {booking.status.replace('_', ' ')}
                         </span>
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${getPaymentStatusBadge(booking.paymentStatus)}`}>
+                          {booking.paymentStatus}
+                        </span>
                         <span className="text-sm font-medium text-[var(--color-primary)]">৳{booking.totalAmount}</span>
                       </div>
                     </div>
                     <div className="text-right">
                       <div className="text-sm text-[var(--color-text-muted)]">
-                        {new Date(booking.scheduledDate).toLocaleDateString()}
+                        {new Date(booking.scheduledDate).toISOString().slice(0, 10)}
                       </div>
                       <div className="text-sm text-[var(--color-text-muted)]">
                         {booking.scheduledTime}
@@ -269,7 +329,24 @@ function MechanicDashboardContent() {
                       >
                         View Details
                       </Link>
-                      {getStatusActions(booking.status, booking._id)}
+                      {booking.status === 'confirmed' && (
+                        <button
+                          onClick={() => handleCompleteService(booking._id)}
+                          className="bg-green-100 text-green-900 px-4 py-2 rounded-lg font-medium hover:bg-green-200 transition disabled:opacity-50"
+                          disabled={completingId === booking._id}
+                        >
+                          {completingId === booking._id ? 'Completing...' : 'Complete Service'}
+                        </button>
+                      )}
+                      {booking.status === 'in_progress' && (
+                        <button
+                          onClick={() => handleCompleteService(booking._id)}
+                          className="bg-green-100 text-green-900 px-4 py-2 rounded-lg font-medium hover:bg-green-200 transition disabled:opacity-50"
+                          disabled={completingId === booking._id}
+                        >
+                          {completingId === booking._id ? 'Completing...' : 'Complete Service'}
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>

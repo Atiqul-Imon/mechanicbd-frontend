@@ -283,7 +283,7 @@ function ProfileContent() {
                   <div>
                     <label className="text-sm font-medium text-text-muted">Member Since</label>
                     <p className="text-text-primary">
-                      {new Date(profile.createdAt).toLocaleDateString()}
+                      {new Date(profile.createdAt).toISOString().slice(0, 10)}
                     </p>
                   </div>
                 </div>

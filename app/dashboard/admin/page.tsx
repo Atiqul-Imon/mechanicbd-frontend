@@ -60,7 +60,8 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   Visibility as ViewIcon,
-  Add as AddIcon
+  Add as AddIcon,
+  Payment as PaymentIcon
 } from '@mui/icons-material';
 
 const drawerWidth = 240;
@@ -89,6 +90,7 @@ interface Booking {
   scheduledTime: string;
   status: string;
   totalAmount: number;
+  paymentStatus: string;
   createdAt: string;
 }
 
@@ -129,6 +131,29 @@ interface Service {
     email: string;
   };
   createdAt: string;
+}
+
+interface Payment {
+  _id: string;
+  paymentId: string;
+  amount: number;
+  paymentMethod: string;
+  status: string;
+  createdAt: string;
+  customer: {
+    _id: string;
+    fullName: string;
+    phoneNumber: string;
+  };
+  mechanic: {
+    _id: string;
+    fullName: string;
+    phoneNumber: string;
+  };
+  booking: {
+    _id: string;
+    bookingNumber: string;
+  };
 }
 
 function UserManagement({ users, onRefresh }: { users: User[]; onRefresh: () => void }) {
@@ -254,7 +279,7 @@ function UserManagement({ users, onRefresh }: { users: User[]; onRefresh: () => 
                       size="small"
                     />
                   </TableCell>
-                  <TableCell>{new Date(user.createdAt).toLocaleDateString()}</TableCell>
+                  <TableCell>{new Date(user.createdAt).toISOString().slice(0, 10)}</TableCell>
                   <TableCell>
                     <Button
                       size="small"
@@ -290,7 +315,7 @@ function UserManagement({ users, onRefresh }: { users: User[]; onRefresh: () => 
               <Typography variant="body2">Phone: {selectedUser.phoneNumber}</Typography>
               <Typography variant="body2">Role: {selectedUser.role}</Typography>
               <Typography variant="body2">Status: {selectedUser.isActive ? 'Active' : 'Inactive'}</Typography>
-              <Typography variant="body2">Created: {new Date(selectedUser.createdAt).toLocaleString()}</Typography>
+              <Typography variant="body2">Created: {new Date(selectedUser.createdAt).toISOString().slice(0, 10)}</Typography>
             </Box>
           )}
         </DialogContent>
@@ -381,6 +406,9 @@ function ServiceManagement({ services, onRefresh }: { services: Service[]; onRef
 
   return (
     <Box sx={{ p: 3 }}>
+      <Typography variant="h5" sx={{ fontWeight: 700, mb: 3, color: 'primary.main', fontFamily: 'Poppins, Arial, Helvetica, sans-serif', letterSpacing: 0.5 }}>
+        Service Management
+      </Typography>
       <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
         <TextField
           label="Search services"
@@ -413,7 +441,7 @@ function ServiceManagement({ services, onRefresh }: { services: Service[]; onRef
         </FormControl>
       </Box>
       
-      <TableContainer component={Paper} sx={{ borderRadius: 2 }}>
+      <TableContainer component={Paper} sx={{ borderRadius: 3, boxShadow: '0 2px 12px 0 rgba(153,27,27,0.08)', mt: 2 }}>
         <Table size="small">
           <TableHead>
             <TableRow>
@@ -488,7 +516,7 @@ function ServiceManagement({ services, onRefresh }: { services: Service[]; onRef
                   </TableCell>
                   <TableCell>
                     <Typography variant="body2">
-                      {new Date(service.createdAt).toLocaleDateString()}
+                      {new Date(service.createdAt).toISOString().slice(0, 10)}
                     </Typography>
                   </TableCell>
                   <TableCell>
@@ -576,7 +604,7 @@ function ServiceManagement({ services, onRefresh }: { services: Service[]; onRef
               
               <Box>
                 <Typography variant="subtitle2" color="textSecondary">Created</Typography>
-                <Typography variant="body2">{new Date(selectedService.createdAt).toLocaleString()}</Typography>
+                <Typography variant="body2">{new Date(selectedService.createdAt).toISOString().slice(0, 10)}</Typography>
               </Box>
             </Box>
           )}
@@ -616,6 +644,317 @@ function ServiceManagement({ services, onRefresh }: { services: Service[]; onRef
   );
 }
 
+function PaymentManagement({ payments, onRefresh }: { payments: Payment[]; onRefresh: () => void }) {
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [methodFilter, setMethodFilter] = useState('all');
+  const [loading, setLoading] = useState(false);
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({ open: false, message: '', severity: 'success' });
+  const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [refundDialogOpen, setRefundDialogOpen] = useState(false);
+  const [refundAmount, setRefundAmount] = useState('');
+  const [refundReason, setRefundReason] = useState('');
+
+  const filteredPayments = payments.filter(payment => {
+    const matchesSearch =
+      payment.paymentId.toLowerCase().includes(search.toLowerCase()) ||
+      payment.customer.fullName.toLowerCase().includes(search.toLowerCase()) ||
+      payment.booking.bookingNumber.includes(search);
+    const matchesStatus = statusFilter === 'all' || payment.status === statusFilter;
+    const matchesMethod = methodFilter === 'all' || payment.paymentMethod === methodFilter;
+    return matchesSearch && matchesStatus && matchesMethod;
+  });
+
+  const handleRefund = async () => {
+    if (!selectedPayment || !refundAmount || !refundReason) return;
+    
+    setLoading(true);
+    try {
+      await api.post(`/payments/admin/${selectedPayment._id}/refund`, {
+        amount: parseFloat(refundAmount),
+        reason: refundReason
+      });
+      setSnackbar({ open: true, message: 'Refund processed successfully', severity: 'success' });
+      onRefresh();
+      setRefundDialogOpen(false);
+      setSelectedPayment(null);
+      setRefundAmount('');
+      setRefundReason('');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to process refund';
+      setSnackbar({ open: true, message: errorMessage, severity: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'pending': return 'warning';
+      case 'processing': return 'info';
+      case 'completed': return 'success';
+      case 'failed': return 'error';
+      case 'cancelled': return 'default';
+      case 'refunded': return 'secondary';
+      default: return 'default';
+    }
+  };
+
+  const getMethodDisplay = (method: string) => {
+    const methodMap: { [key: string]: string } = {
+      bkash: 'bKash',
+      nagad: 'Nagad',
+      rocket: 'Rocket',
+      upay: 'Upay',
+      tap: 'Tap',
+      sure_cash: 'Sure Cash'
+    };
+    return methodMap[method] || method;
+  };
+
+  return (
+    <Box sx={{ p: 3 }}>
+      <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+        <TextField
+          label="Search payments"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          size="small"
+        />
+        <FormControl size="small" sx={{ minWidth: 120 }}>
+          <InputLabel>Status</InputLabel>
+          <Select value={statusFilter} label="Status" onChange={e => setStatusFilter(e.target.value)}>
+            <MenuItem value="all">All</MenuItem>
+            <MenuItem value="pending">Pending</MenuItem>
+            <MenuItem value="processing">Processing</MenuItem>
+            <MenuItem value="completed">Completed</MenuItem>
+            <MenuItem value="failed">Failed</MenuItem>
+            <MenuItem value="cancelled">Cancelled</MenuItem>
+            <MenuItem value="refunded">Refunded</MenuItem>
+          </Select>
+        </FormControl>
+        <FormControl size="small" sx={{ minWidth: 120 }}>
+          <InputLabel>Method</InputLabel>
+          <Select value={methodFilter} label="Method" onChange={e => setMethodFilter(e.target.value)}>
+            <MenuItem value="all">All</MenuItem>
+            <MenuItem value="bkash">bKash</MenuItem>
+            <MenuItem value="nagad">Nagad</MenuItem>
+            <MenuItem value="rocket">Rocket</MenuItem>
+            <MenuItem value="upay">Upay</MenuItem>
+            <MenuItem value="tap">Tap</MenuItem>
+            <MenuItem value="sure_cash">Sure Cash</MenuItem>
+          </Select>
+        </FormControl>
+      </Box>
+      
+      <TableContainer component={Paper} sx={{ borderRadius: 2 }}>
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell>Payment ID</TableCell>
+              <TableCell>Customer</TableCell>
+              <TableCell>Booking</TableCell>
+              <TableCell>Amount</TableCell>
+              <TableCell>Method</TableCell>
+              <TableCell>Status</TableCell>
+              <TableCell>Date</TableCell>
+              <TableCell>Actions</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {filteredPayments.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={8} align="center">No payments found.</TableCell>
+              </TableRow>
+            ) : (
+              filteredPayments.map(payment => (
+                <TableRow key={payment._id}>
+                  <TableCell>
+                    <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
+                      {payment.paymentId}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Box>
+                      <Typography variant="body2">{payment.customer.fullName}</Typography>
+                      <Typography variant="caption" color="textSecondary">
+                        {payment.customer.phoneNumber}
+                      </Typography>
+                    </Box>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
+                      #{payment.booking.bookingNumber}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                      ৳{payment.amount.toLocaleString()}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Chip 
+                      label={getMethodDisplay(payment.paymentMethod)} 
+                      size="small" 
+                      variant="outlined"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Chip 
+                      label={payment.status} 
+                      color={getStatusColor(payment.status) as any}
+                      size="small"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2">
+                      {new Date(payment.createdAt).toISOString().slice(0, 10)}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                      <IconButton
+                        size="small"
+                        onClick={() => {
+                          setSelectedPayment(payment);
+                          setDetailsOpen(true);
+                        }}
+                      >
+                        <ViewIcon />
+                      </IconButton>
+                      {payment.status === 'completed' && (
+                        <IconButton
+                          size="small"
+                          color="warning"
+                          onClick={() => {
+                            setSelectedPayment(payment);
+                            setRefundAmount(payment.amount.toString());
+                            setRefundDialogOpen(true);
+                          }}
+                        >
+                          <MoneyIcon />
+                        </IconButton>
+                      )}
+                    </Box>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
+
+      {/* Payment Details Dialog */}
+      <Dialog open={detailsOpen} onClose={() => setDetailsOpen(false)} maxWidth="md" fullWidth>
+        <DialogTitle>Payment Details</DialogTitle>
+        <DialogContent>
+          {selectedPayment && (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+                <Box>
+                  <Typography variant="subtitle2" color="textSecondary">Payment ID</Typography>
+                  <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
+                    {selectedPayment.paymentId}
+                  </Typography>
+                </Box>
+                <Box>
+                  <Typography variant="subtitle2" color="textSecondary">Amount</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                    ৳{selectedPayment.amount.toLocaleString()}
+                  </Typography>
+                </Box>
+                <Box>
+                  <Typography variant="subtitle2" color="textSecondary">Method</Typography>
+                  <Typography variant="body2">{getMethodDisplay(selectedPayment.paymentMethod)}</Typography>
+                </Box>
+                <Box>
+                  <Typography variant="subtitle2" color="textSecondary">Status</Typography>
+                  <Chip 
+                    label={selectedPayment.status} 
+                    color={getStatusColor(selectedPayment.status) as any}
+                    size="small"
+                  />
+                </Box>
+              </Box>
+              
+              <Divider />
+              
+              <Box>
+                <Typography variant="subtitle2" color="textSecondary">Customer</Typography>
+                <Typography variant="body2">{selectedPayment.customer.fullName}</Typography>
+                <Typography variant="caption" color="textSecondary">
+                  {selectedPayment.customer.phoneNumber}
+                </Typography>
+              </Box>
+              
+              <Box>
+                <Typography variant="subtitle2" color="textSecondary">Booking</Typography>
+                <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
+                  #{selectedPayment.booking.bookingNumber}
+                </Typography>
+              </Box>
+              
+              <Box>
+                <Typography variant="subtitle2" color="textSecondary">Created</Typography>
+                <Typography variant="body2">
+                  {new Date(selectedPayment.createdAt).toISOString().slice(0, 10)}
+                </Typography>
+              </Box>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDetailsOpen(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Refund Dialog */}
+      <Dialog open={refundDialogOpen} onClose={() => setRefundDialogOpen(false)}>
+        <DialogTitle>Process Refund</DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+            <TextField
+              label="Refund Amount"
+              type="number"
+              value={refundAmount}
+              onChange={e => setRefundAmount(e.target.value)}
+              fullWidth
+              size="small"
+            />
+            <TextField
+              label="Refund Reason"
+              value={refundReason}
+              onChange={e => setRefundReason(e.target.value)}
+              fullWidth
+              multiline
+              rows={3}
+              size="small"
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setRefundDialogOpen(false)} disabled={loading}>Cancel</Button>
+          <Button onClick={handleRefund} color="warning" variant="contained" disabled={loading}>
+            {loading ? 'Processing...' : 'Process Refund'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={3000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert severity={snackbar.severity} onClose={() => setSnackbar({ ...snackbar, open: false })}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+    </Box>
+  );
+}
+
 function AdminDashboard() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -623,6 +962,7 @@ function AdminDashboard() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [payments, setPayments] = useState<Payment[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -642,17 +982,19 @@ function AdminDashboard() {
     setLoading(true);
     setError('');
     try {
-      const [bookingsRes, usersRes, statsRes, servicesRes] = await Promise.all([
+      const [bookingsRes, usersRes, statsRes, servicesRes, paymentsRes] = await Promise.all([
         get('/bookings'),
         get('/users'),
         get('/users/admin/dashboard-stats'),
-        get('/services/admin')
+        get('/services/admin'),
+        get('/payments/admin/all')
       ]);
       
       setBookings(bookingsRes.data.data.bookings);
       setUsers(usersRes.data.data.users);
       setStats(statsRes.data.data.stats);
       setServices(servicesRes.data.data.services);
+      setPayments(paymentsRes.data.data.payments);
       
       // Filter mechanics for assignment
       const mechanics = usersRes.data.data.users.filter((u: User) => u.role === 'mechanic' && u.isActive);
@@ -711,11 +1053,21 @@ function AdminDashboard() {
     }
   };
 
+  const getPaymentStatusBadge = (paymentStatus: string) => {
+    switch (paymentStatus) {
+      case 'paid': return 'bg-green-100 text-green-900';
+      case 'pending': return 'bg-yellow-100 text-yellow-900';
+      case 'failed': return 'bg-red-100 text-red-900';
+      default: return 'bg-gray-100 text-gray-900';
+    }
+  };
+
   const menuItems = [
     { text: 'Dashboard', icon: <DashboardIcon />, value: 'dashboard' },
     { text: 'Bookings', icon: <AssignmentIcon />, value: 'bookings' },
     { text: 'Users', icon: <PeopleIcon />, value: 'users' },
     { text: 'Services', icon: <BuildIcon />, value: 'services' },
+    { text: 'Payments', icon: <PaymentIcon />, value: 'payments' },
     { text: 'Reports', icon: <AssessmentIcon />, value: 'reports' },
     { text: 'Settings', icon: <SettingsIcon />, value: 'settings' },
   ];
@@ -756,6 +1108,9 @@ function AdminDashboard() {
 
   const renderDashboard = () => (
     <Box sx={{ p: 3 }}>
+      <Typography variant="h4" sx={{ fontWeight: 700, mb: 4, color: 'primary.main', fontFamily: 'Poppins, Arial, Helvetica, sans-serif', letterSpacing: 0.5 }}>
+        Admin Dashboard Overview
+      </Typography>
       {/* Stats Cards */}
       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, mb: 4 }}>
         <Box sx={{ flex: '1 1 250px', minWidth: 250 }}>
@@ -840,13 +1195,13 @@ function AdminDashboard() {
       </Box>
 
       {/* Recent Bookings */}
-      <Card>
+      <Card sx={{ mt: 4, borderRadius: 3, boxShadow: '0 2px 12px 0 rgba(153,27,27,0.08)' }}>
         <CardContent>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-            <Typography variant="h5" component="h2">
+            <Typography variant="h5" sx={{ fontWeight: 700, color: 'primary.main', fontFamily: 'Poppins, Arial, Helvetica, sans-serif' }}>
               Recent Bookings
             </Typography>
-            <Button variant="outlined" startIcon={<AddIcon />}>
+            <Button variant="outlined" startIcon={<AddIcon />} color="secondary" sx={{ fontWeight: 600, borderRadius: 2 }}>
               View All
             </Button>
           </Box>
@@ -905,18 +1260,21 @@ function AdminDashboard() {
                       )}
                     </TableCell>
                     <TableCell>
-                      {new Date(booking.scheduledDate).toLocaleDateString()}
+                      {new Date(booking.scheduledDate).toISOString().slice(0, 10)}
                       <br />
                       <Typography variant="caption" color="textSecondary">
                         {booking.scheduledTime}
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      <Chip
-                        label={booking.status.replace('_', ' ')}
-                        color={getStatusColor(booking.status)}
-                        size="small"
-                      />
+                      <div className="flex items-center gap-2">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(booking.status)}`}>
+                          {booking.status.replace('_', ' ')}
+                        </span>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPaymentStatusBadge(booking.paymentStatus)}`}>
+                          {booking.paymentStatus}
+                        </span>
+                      </div>
                     </TableCell>
                     <TableCell>৳{booking.totalAmount}</TableCell>
                     <TableCell>
@@ -949,6 +1307,8 @@ function AdminDashboard() {
         return <UserManagement users={users} onRefresh={fetchDashboardData} />;
       case 'services':
         return <ServiceManagement services={services} onRefresh={fetchDashboardData} />;
+      case 'payments':
+        return <PaymentManagement payments={payments} onRefresh={fetchDashboardData} />;
       case 'reports':
         return <Typography>Reports & Analytics</Typography>;
       case 'settings':
