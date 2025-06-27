@@ -1,6 +1,5 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { useAuth } from '../../../contexts/AuthContext';
 import api, { get } from '../../../utils/api';
 import ProtectedRoute from '../../../components/ProtectedRoute';
 import {
@@ -18,7 +17,6 @@ import {
   ListItemText,
   Card,
   CardContent,
-  Grid,
   Paper,
   Chip,
   Button,
@@ -43,7 +41,8 @@ import {
   Alert,
   CircularProgress,
   useTheme,
-  useMediaQuery
+  useMediaQuery,
+  Snackbar
 } from '@mui/material';
 import {
   Dashboard as DashboardIcon,
@@ -58,8 +57,6 @@ import {
   TrendingUp as TrendingUpIcon,
   AttachMoney as MoneyIcon,
   Schedule as ScheduleIcon,
-  CheckCircle as CheckCircleIcon,
-  Cancel as CancelIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
   Visibility as ViewIcon,
@@ -117,10 +114,511 @@ interface Stats {
   pendingMechanics: number;
 }
 
+interface Service {
+  _id: string;
+  title: string;
+  description: string;
+  category: string;
+  basePrice: number;
+  serviceArea: string;
+  isActive: boolean;
+  mechanic: {
+    _id: string;
+    fullName: string;
+    phoneNumber: string;
+    email: string;
+  };
+  createdAt: string;
+}
+
+function UserManagement({ users, onRefresh }: { users: User[]; onRefresh: () => void }) {
+  const [search, setSearch] = useState('');
+  const [roleFilter, setRoleFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [loading, setLoading] = useState(false);
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({ open: false, message: '', severity: 'success' });
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+
+  const filteredUsers = users.filter(user => {
+    const matchesSearch =
+      user.fullName.toLowerCase().includes(search.toLowerCase()) ||
+      user.email.toLowerCase().includes(search.toLowerCase()) ||
+      user.phoneNumber.includes(search);
+    const matchesRole = roleFilter === 'all' || user.role === roleFilter;
+    const matchesStatus = statusFilter === 'all' || (statusFilter === 'active' ? user.isActive : !user.isActive);
+    return matchesSearch && matchesRole && matchesStatus;
+  });
+
+  const handleStatusToggle = async (userId: string) => {
+    setLoading(true);
+    try {
+      await api.patch(`/users/${userId}`, { isActive: !users.find(u => u._id === userId)?.isActive });
+      setSnackbar({ open: true, message: 'User status updated', severity: 'success' });
+      onRefresh();
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to update user';
+      setSnackbar({ open: true, message: errorMessage, severity: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRoleChange = async (userId: string, newRole: string) => {
+    setLoading(true);
+    try {
+      await api.patch(`/users/${userId}`, { role: newRole });
+      setSnackbar({ open: true, message: 'User role updated', severity: 'success' });
+      onRefresh();
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to update role';
+      setSnackbar({ open: true, message: errorMessage, severity: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Box sx={{ p: 3 }}>
+      <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+        <TextField
+          label="Search users"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          size="small"
+        />
+        <FormControl size="small" sx={{ minWidth: 120 }}>
+          <InputLabel>Role</InputLabel>
+          <Select value={roleFilter} label="Role" onChange={e => setRoleFilter(e.target.value)}>
+            <MenuItem value="all">All</MenuItem>
+            <MenuItem value="customer">Customer</MenuItem>
+            <MenuItem value="mechanic">Mechanic</MenuItem>
+            <MenuItem value="admin">Admin</MenuItem>
+          </Select>
+        </FormControl>
+        <FormControl size="small" sx={{ minWidth: 120 }}>
+          <InputLabel>Status</InputLabel>
+          <Select value={statusFilter} label="Status" onChange={e => setStatusFilter(e.target.value)}>
+            <MenuItem value="all">All</MenuItem>
+            <MenuItem value="active">Active</MenuItem>
+            <MenuItem value="inactive">Inactive</MenuItem>
+          </Select>
+        </FormControl>
+      </Box>
+      <TableContainer component={Paper} sx={{ borderRadius: 2 }}>
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell>Name</TableCell>
+              <TableCell>Email</TableCell>
+              <TableCell>Phone</TableCell>
+              <TableCell>Role</TableCell>
+              <TableCell>Status</TableCell>
+              <TableCell>Created</TableCell>
+              <TableCell>Actions</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {filteredUsers.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7} align="center">No users found.</TableCell>
+              </TableRow>
+            ) : (
+              filteredUsers.map(user => (
+                <TableRow key={user._id}>
+                  <TableCell>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Avatar sx={{ width: 28, height: 28 }}>{user.fullName.charAt(0)}</Avatar>
+                      <span>{user.fullName}</span>
+                    </Box>
+                  </TableCell>
+                  <TableCell>{user.email}</TableCell>
+                  <TableCell>{user.phoneNumber}</TableCell>
+                  <TableCell>
+                    <FormControl size="small">
+                      <Select
+                        value={user.role}
+                        onChange={e => handleRoleChange(user._id, e.target.value)}
+                        disabled={user.role === 'admin'}
+                      >
+                        <MenuItem value="customer">Customer</MenuItem>
+                        <MenuItem value="mechanic">Mechanic</MenuItem>
+                        <MenuItem value="admin">Admin</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </TableCell>
+                  <TableCell>
+                    <Chip
+                      label={user.isActive ? 'Active' : 'Inactive'}
+                      color={user.isActive ? 'success' : 'default'}
+                      size="small"
+                    />
+                  </TableCell>
+                  <TableCell>{new Date(user.createdAt).toLocaleDateString()}</TableCell>
+                  <TableCell>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      color={user.isActive ? 'error' : 'success'}
+                      onClick={() => handleStatusToggle(user._id)}
+                      disabled={loading || user.role === 'admin'}
+                    >
+                      {user.isActive ? 'Deactivate' : 'Activate'}
+                    </Button>
+                    <Button
+                      size="small"
+                      variant="text"
+                      onClick={() => { setSelectedUser(user); setDetailsOpen(true); }}
+                    >
+                      Details
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
+      {/* User Details Dialog */}
+      <Dialog open={detailsOpen} onClose={() => setDetailsOpen(false)}>
+        <DialogTitle>User Details</DialogTitle>
+        <DialogContent>
+          {selectedUser && (
+            <Box sx={{ minWidth: 300 }}>
+              <Typography variant="subtitle1" fontWeight={600}>{selectedUser.fullName}</Typography>
+              <Typography variant="body2">Email: {selectedUser.email}</Typography>
+              <Typography variant="body2">Phone: {selectedUser.phoneNumber}</Typography>
+              <Typography variant="body2">Role: {selectedUser.role}</Typography>
+              <Typography variant="body2">Status: {selectedUser.isActive ? 'Active' : 'Inactive'}</Typography>
+              <Typography variant="body2">Created: {new Date(selectedUser.createdAt).toLocaleString()}</Typography>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDetailsOpen(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={3000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert severity={snackbar.severity} onClose={() => setSnackbar({ ...snackbar, open: false })}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+    </Box>
+  );
+}
+
+function ServiceManagement({ services, onRefresh }: { services: Service[]; onRefresh: () => void }) {
+  const [search, setSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [loading, setLoading] = useState(false);
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({ open: false, message: '', severity: 'success' });
+  const [selectedService, setSelectedService] = useState<Service | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [serviceToDelete, setServiceToDelete] = useState<Service | null>(null);
+
+  const filteredServices = services.filter(service => {
+    const matchesSearch =
+      service.title.toLowerCase().includes(search.toLowerCase()) ||
+      service.description.toLowerCase().includes(search.toLowerCase()) ||
+      service.mechanic.fullName.toLowerCase().includes(search.toLowerCase());
+    const matchesCategory = categoryFilter === 'all' || service.category === categoryFilter;
+    const matchesStatus = statusFilter === 'all' || (statusFilter === 'active' ? service.isActive : !service.isActive);
+    return matchesSearch && matchesCategory && matchesStatus;
+  });
+
+  const handleStatusToggle = async (serviceId: string) => {
+    setLoading(true);
+    try {
+      await api.patch(`/services/admin/${serviceId}/toggle`);
+      setSnackbar({ open: true, message: 'Service status updated', severity: 'success' });
+      onRefresh();
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to update service status';
+      setSnackbar({ open: true, message: errorMessage, severity: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteService = async () => {
+    if (!serviceToDelete) return;
+    
+    setLoading(true);
+    try {
+      await api.delete(`/services/${serviceToDelete._id}`);
+      setSnackbar({ open: true, message: 'Service deleted successfully', severity: 'success' });
+      onRefresh();
+      setDeleteDialogOpen(false);
+      setServiceToDelete(null);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to delete service';
+      setSnackbar({ open: true, message: errorMessage, severity: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getCategoryIcon = (category: string) => {
+    const icons: { [key: string]: string } = {
+      'HVAC': '❄️',
+      'Electrical': '⚡',
+      'Plumbing': '🚰',
+      'Appliances': '🏠',
+      'Carpentry': '🔨',
+      'Painting': '🎨',
+      'Cleaning': '🧹',
+      'Other': '🔧'
+    };
+    return icons[category] || '🔧';
+  };
+
+  return (
+    <Box sx={{ p: 3 }}>
+      <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+        <TextField
+          label="Search services"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          size="small"
+          placeholder="Search by title, description, or mechanic..."
+        />
+        <FormControl size="small" sx={{ minWidth: 120 }}>
+          <InputLabel>Category</InputLabel>
+          <Select value={categoryFilter} label="Category" onChange={e => setCategoryFilter(e.target.value)}>
+            <MenuItem value="all">All Categories</MenuItem>
+            <MenuItem value="HVAC">HVAC</MenuItem>
+            <MenuItem value="Electrical">Electrical</MenuItem>
+            <MenuItem value="Plumbing">Plumbing</MenuItem>
+            <MenuItem value="Appliances">Appliances</MenuItem>
+            <MenuItem value="Carpentry">Carpentry</MenuItem>
+            <MenuItem value="Painting">Painting</MenuItem>
+            <MenuItem value="Cleaning">Cleaning</MenuItem>
+            <MenuItem value="Other">Other</MenuItem>
+          </Select>
+        </FormControl>
+        <FormControl size="small" sx={{ minWidth: 120 }}>
+          <InputLabel>Status</InputLabel>
+          <Select value={statusFilter} label="Status" onChange={e => setStatusFilter(e.target.value)}>
+            <MenuItem value="all">All Status</MenuItem>
+            <MenuItem value="active">Active</MenuItem>
+            <MenuItem value="inactive">Inactive</MenuItem>
+          </Select>
+        </FormControl>
+      </Box>
+      
+      <TableContainer component={Paper} sx={{ borderRadius: 2 }}>
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell>Service</TableCell>
+              <TableCell>Category</TableCell>
+              <TableCell>Mechanic</TableCell>
+              <TableCell>Price</TableCell>
+              <TableCell>Area</TableCell>
+              <TableCell>Status</TableCell>
+              <TableCell>Created</TableCell>
+              <TableCell>Actions</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {filteredServices.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={8} align="center">No services found.</TableCell>
+              </TableRow>
+            ) : (
+              filteredServices.map(service => (
+                <TableRow key={service._id}>
+                  <TableCell>
+                    <Box sx={{ maxWidth: 200 }}>
+                      <Typography variant="body2" fontWeight={600} noWrap>
+                        {service.title}
+                      </Typography>
+                      <Typography variant="caption" color="textSecondary" sx={{ 
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden'
+                      }}>
+                        {service.description}
+                      </Typography>
+                    </Box>
+                  </TableCell>
+                  <TableCell>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <span>{getCategoryIcon(service.category)}</span>
+                      <span>{service.category}</span>
+                    </Box>
+                  </TableCell>
+                  <TableCell>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Avatar sx={{ width: 24, height: 24 }}>
+                        {service.mechanic.fullName.charAt(0)}
+                      </Avatar>
+                      <Box>
+                        <Typography variant="body2">{service.mechanic.fullName}</Typography>
+                        <Typography variant="caption" color="textSecondary">
+                          {service.mechanic.phoneNumber}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2" fontWeight={600}>
+                      ৳{service.basePrice}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2" noWrap>
+                      {service.serviceArea}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Chip
+                      label={service.isActive ? 'Active' : 'Inactive'}
+                      color={service.isActive ? 'success' : 'default'}
+                      size="small"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2">
+                      {new Date(service.createdAt).toLocaleDateString()}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Box sx={{ display: 'flex', gap: 0.5 }}>
+                      <IconButton
+                        size="small"
+                        color="primary"
+                        onClick={() => { setSelectedService(service); setDetailsOpen(true); }}
+                      >
+                        <ViewIcon />
+                      </IconButton>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        color={service.isActive ? 'error' : 'success'}
+                        onClick={() => handleStatusToggle(service._id)}
+                        disabled={loading}
+                      >
+                        {service.isActive ? 'Deactivate' : 'Activate'}
+                      </Button>
+                      <IconButton
+                        size="small"
+                        color="error"
+                        onClick={() => { setServiceToDelete(service); setDeleteDialogOpen(true); }}
+                        disabled={loading}
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    </Box>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
+
+      {/* Service Details Dialog */}
+      <Dialog open={detailsOpen} onClose={() => setDetailsOpen(false)} maxWidth="md" fullWidth>
+        <DialogTitle>Service Details</DialogTitle>
+        <DialogContent>
+          {selectedService && (
+            <Box sx={{ minWidth: 400 }}>
+              <Typography variant="h6" fontWeight={600} gutterBottom>{selectedService.title}</Typography>
+              <Typography variant="body2" color="textSecondary" paragraph>{selectedService.description}</Typography>
+              
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 2 }}>
+                <Box sx={{ flex: '1 1 200px' }}>
+                  <Typography variant="subtitle2" color="textSecondary">Category</Typography>
+                  <Typography variant="body1">
+                    {getCategoryIcon(selectedService.category)} {selectedService.category}
+                  </Typography>
+                </Box>
+                <Box sx={{ flex: '1 1 200px' }}>
+                  <Typography variant="subtitle2" color="textSecondary">Base Price</Typography>
+                  <Typography variant="body1" fontWeight={600}>৳{selectedService.basePrice}</Typography>
+                </Box>
+                <Box sx={{ flex: '1 1 200px' }}>
+                  <Typography variant="subtitle2" color="textSecondary">Service Area</Typography>
+                  <Typography variant="body1">{selectedService.serviceArea}</Typography>
+                </Box>
+                <Box sx={{ flex: '1 1 200px' }}>
+                  <Typography variant="subtitle2" color="textSecondary">Status</Typography>
+                  <Chip
+                    label={selectedService.isActive ? 'Active' : 'Inactive'}
+                    color={selectedService.isActive ? 'success' : 'default'}
+                    size="small"
+                  />
+                </Box>
+              </Box>
+              
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="subtitle2" color="textSecondary" gutterBottom>Mechanic Information</Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+                  <Avatar sx={{ width: 48, height: 48 }}>
+                    {selectedService.mechanic.fullName.charAt(0)}
+                  </Avatar>
+                  <Box>
+                    <Typography variant="body1" fontWeight={600}>{selectedService.mechanic.fullName}</Typography>
+                    <Typography variant="body2" color="textSecondary">{selectedService.mechanic.email}</Typography>
+                    <Typography variant="body2" color="textSecondary">{selectedService.mechanic.phoneNumber}</Typography>
+                  </Box>
+                </Box>
+              </Box>
+              
+              <Box>
+                <Typography variant="subtitle2" color="textSecondary">Created</Typography>
+                <Typography variant="body2">{new Date(selectedService.createdAt).toLocaleString()}</Typography>
+              </Box>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDetailsOpen(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+        <DialogTitle>Delete Service</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete &quot;{serviceToDelete?.title}&quot;? This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)} disabled={loading}>Cancel</Button>
+          <Button onClick={handleDeleteService} color="error" variant="contained" disabled={loading}>
+            {loading ? 'Deleting...' : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={3000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert severity={snackbar.severity} onClose={() => setSnackbar({ ...snackbar, open: false })}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+    </Box>
+  );
+}
+
 function AdminDashboard() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const { user } = useAuth();
   
   const [mobileOpen, setMobileOpen] = useState(false);
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -134,6 +632,7 @@ function AdminDashboard() {
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [availableMechanics, setAvailableMechanics] = useState<User[]>([]);
   const [selectedMechanic, setSelectedMechanic] = useState('');
+  const [services, setServices] = useState<Service[]>([]);
 
   useEffect(() => {
     fetchDashboardData();
@@ -143,21 +642,24 @@ function AdminDashboard() {
     setLoading(true);
     setError('');
     try {
-      const [bookingsRes, usersRes, statsRes] = await Promise.all([
+      const [bookingsRes, usersRes, statsRes, servicesRes] = await Promise.all([
         get('/bookings'),
         get('/users'),
-        get('/users/admin/dashboard-stats')
+        get('/users/admin/dashboard-stats'),
+        get('/services/admin')
       ]);
       
       setBookings(bookingsRes.data.data.bookings);
       setUsers(usersRes.data.data.users);
       setStats(statsRes.data.data.stats);
+      setServices(servicesRes.data.data.services);
       
       // Filter mechanics for assignment
       const mechanics = usersRes.data.data.users.filter((u: User) => u.role === 'mechanic' && u.isActive);
       setAvailableMechanics(mechanics);
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to fetch dashboard data');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch dashboard data';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -192,8 +694,9 @@ function AdminDashboard() {
       setAssignDialogOpen(false);
       setSelectedBooking(null);
       setSelectedMechanic('');
-    } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to assign mechanic');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to assign mechanic';
+      alert(errorMessage);
     }
   };
 
@@ -254,8 +757,8 @@ function AdminDashboard() {
   const renderDashboard = () => (
     <Box sx={{ p: 3 }}>
       {/* Stats Cards */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={6} md={3}>
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, mb: 4 }}>
+        <Box sx={{ flex: '1 1 250px', minWidth: 250 }}>
           <Card sx={{ height: '100%' }}>
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -273,9 +776,9 @@ function AdminDashboard() {
               </Box>
             </CardContent>
           </Card>
-        </Grid>
+        </Box>
         
-        <Grid item xs={12} sm={6} md={3}>
+        <Box sx={{ flex: '1 1 250px', minWidth: 250 }}>
           <Card sx={{ height: '100%' }}>
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -293,9 +796,9 @@ function AdminDashboard() {
               </Box>
             </CardContent>
           </Card>
-        </Grid>
+        </Box>
         
-        <Grid item xs={12} sm={6} md={3}>
+        <Box sx={{ flex: '1 1 250px', minWidth: 250 }}>
           <Card sx={{ height: '100%' }}>
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -313,15 +816,15 @@ function AdminDashboard() {
               </Box>
             </CardContent>
           </Card>
-        </Grid>
+        </Box>
         
-        <Grid item xs={12} sm={6} md={3}>
+        <Box sx={{ flex: '1 1 250px', minWidth: 250 }}>
           <Card sx={{ height: '100%' }}>
             <CardContent>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Box>
                   <Typography color="textSecondary" gutterBottom variant="h6">
-                    Today's Revenue
+                    Today&apos;s Revenue
                   </Typography>
                   <Typography variant="h4" component="div">
                     ৳{stats?.todayRevenue || 0}
@@ -333,8 +836,8 @@ function AdminDashboard() {
               </Box>
             </CardContent>
           </Card>
-        </Grid>
-      </Grid>
+        </Box>
+      </Box>
 
       {/* Recent Bookings */}
       <Card>
@@ -411,7 +914,7 @@ function AdminDashboard() {
                     <TableCell>
                       <Chip
                         label={booking.status.replace('_', ' ')}
-                        color={getStatusColor(booking.status) as any}
+                        color={getStatusColor(booking.status)}
                         size="small"
                       />
                     </TableCell>
@@ -443,9 +946,9 @@ function AdminDashboard() {
       case 'bookings':
         return <Typography>Bookings Management</Typography>;
       case 'users':
-        return <Typography>User Management</Typography>;
+        return <UserManagement users={users} onRefresh={fetchDashboardData} />;
       case 'services':
-        return <Typography>Service Management</Typography>;
+        return <ServiceManagement services={services} onRefresh={fetchDashboardData} />;
       case 'reports':
         return <Typography>Reports & Analytics</Typography>;
       case 'settings':
