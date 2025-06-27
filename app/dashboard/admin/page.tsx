@@ -92,6 +92,17 @@ interface Booking {
   totalAmount: number;
   paymentStatus: string;
   createdAt: string;
+  refund?: {
+    refundStatus: string;
+    refundAmount?: number;
+    refundReason?: string;
+  };
+  reschedule?: {
+    status: string;
+    newDate?: string;
+    newTime?: string;
+    note?: string;
+  };
 }
 
 interface User {
@@ -1020,6 +1031,10 @@ function AdminDashboard() {
   const [availableMechanics, setAvailableMechanics] = useState<User[]>([]);
   const [selectedMechanic, setSelectedMechanic] = useState('');
   const [services, setServices] = useState<Service[]>([]);
+  const [refundModalOpen, setRefundModalOpen] = useState(false);
+  const [refundAction, setRefundAction] = useState<'approve' | 'reject' | 'process'>('approve');
+  const [refundNote, setRefundNote] = useState('');
+  const [processingRefund, setProcessingRefund] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
@@ -1089,22 +1104,62 @@ function AdminDashboard() {
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'pending': return 'warning';
-      case 'confirmed': return 'info';
-      case 'in_progress': return 'secondary';
-      case 'completed': return 'success';
-      case 'cancelled': return 'error';
-      default: return 'default';
+  const handleRefundAction = async () => {
+    if (!selectedBooking) return;
+    
+    setProcessingRefund(true);
+    try {
+      await api.patch(`/bookings/${selectedBooking._id}/refund`, {
+        action: refundAction,
+        note: refundNote
+      });
+      
+      // Update booking in state
+      setBookings(bookings.map(b => 
+        b._id === selectedBooking._id 
+          ? { 
+              ...b, 
+              refund: {
+                ...b.refund,
+                refundStatus: refundAction === 'approve' ? 'approved' : 
+                             refundAction === 'reject' ? 'rejected' : 'processed'
+              }
+            }
+          : b
+      ));
+      
+      setRefundModalOpen(false);
+      setSelectedBooking(null);
+      setRefundAction('approve');
+      setRefundNote('');
+      alert(`Refund ${refundAction}ed successfully!`);
+    } catch (err: any) {
+      alert(err.response?.data?.message || `Failed to ${refundAction} refund`);
+    } finally {
+      setProcessingRefund(false);
     }
   };
 
-  const getPaymentStatusBadge = (paymentStatus: string) => {
-    switch (paymentStatus) {
-      case 'paid': return 'bg-green-100 text-green-900';
-      case 'pending': return 'bg-yellow-100 text-yellow-900';
-      case 'failed': return 'bg-red-100 text-red-900';
+  const openRefundModal = (booking: Booking) => {
+    setSelectedBooking(booking);
+    setRefundModalOpen(true);
+  };
+
+  const getRefundStatusBadge = (refundStatus: string) => {
+    switch (refundStatus) {
+      case 'requested': return 'bg-yellow-100 text-yellow-900';
+      case 'approved': return 'bg-blue-100 text-blue-900';
+      case 'rejected': return 'bg-red-100 text-red-900';
+      case 'processed': return 'bg-green-100 text-green-900';
+      default: return 'bg-gray-100 text-gray-900';
+    }
+  };
+
+  const getRescheduleStatusBadge = (rescheduleStatus: string) => {
+    switch (rescheduleStatus) {
+      case 'requested': return 'bg-yellow-100 text-yellow-900';
+      case 'accepted': return 'bg-green-100 text-green-900';
+      case 'declined': return 'bg-red-100 text-red-900';
       default: return 'bg-gray-100 text-gray-900';
     }
   };
@@ -1154,91 +1209,80 @@ function AdminDashboard() {
   );
 
   const renderDashboard = () => (
-    <Box sx={{ p: 3 }}>
-      <Typography variant="h4" sx={{ fontWeight: 700, mb: 4, color: 'primary.main', fontFamily: 'Poppins, Arial, Helvetica, sans-serif', letterSpacing: 0.5 }}>
-        Admin Dashboard Overview
-      </Typography>
+    <Box>
       {/* Stats Cards */}
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, mb: 4 }}>
-        <Box sx={{ flex: '1 1 250px', minWidth: 250 }}>
-          <Card sx={{ height: '100%' }}>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Box>
-                  <Typography color="textSecondary" gutterBottom variant="h6">
-                    Total Users
-                  </Typography>
-                  <Typography variant="h4" component="div">
-                    {stats?.totalUsers || 0}
-                  </Typography>
-                </Box>
-                <Avatar sx={{ bgcolor: 'primary.main' }}>
-                  <PeopleIcon />
-                </Avatar>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' }, gap: 3, mb: 4 }}>
+        <Card sx={{ borderRadius: 3, boxShadow: '0 2px 12px 0 rgba(153,27,27,0.08)' }}>
+          <CardContent>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Box sx={{ p: 1.5, bgcolor: 'primary.50', borderRadius: 2 }}>
+                <PeopleIcon sx={{ color: 'primary.main', fontSize: 28 }} />
               </Box>
-            </CardContent>
-          </Card>
-        </Box>
-        
-        <Box sx={{ flex: '1 1 250px', minWidth: 250 }}>
-          <Card sx={{ height: '100%' }}>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Box>
-                  <Typography color="textSecondary" gutterBottom variant="h6">
-                    Active Bookings
-                  </Typography>
-                  <Typography variant="h4" component="div">
-                    {stats?.activeBookings || 0}
-                  </Typography>
-                </Box>
-                <Avatar sx={{ bgcolor: 'info.main' }}>
-                  <ScheduleIcon />
-                </Avatar>
+              <Box>
+                <Typography variant="body2" color="textSecondary" sx={{ fontWeight: 500, fontFamily: 'Poppins, Arial, Helvetica, sans-serif' }}>
+                  Total Users
+                </Typography>
+                <Typography variant="h4" sx={{ fontWeight: 700, color: 'primary.main', fontFamily: 'Poppins, Arial, Helvetica, sans-serif' }}>
+                  {stats?.totalUsers || 0}
+                </Typography>
               </Box>
-            </CardContent>
-          </Card>
-        </Box>
-        
-        <Box sx={{ flex: '1 1 250px', minWidth: 250 }}>
-          <Card sx={{ height: '100%' }}>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Box>
-                  <Typography color="textSecondary" gutterBottom variant="h6">
-                    Total Revenue
-                  </Typography>
-                  <Typography variant="h4" component="div">
-                    ৳{stats?.totalRevenue || 0}
-                  </Typography>
-                </Box>
-                <Avatar sx={{ bgcolor: 'success.main' }}>
-                  <MoneyIcon />
-                </Avatar>
+            </Box>
+          </CardContent>
+        </Card>
+
+        <Card sx={{ borderRadius: 3, boxShadow: '0 2px 12px 0 rgba(153,27,27,0.08)' }}>
+          <CardContent>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Box sx={{ p: 1.5, bgcolor: 'success.50', borderRadius: 2 }}>
+                <AssignmentIcon sx={{ color: 'success.main', fontSize: 28 }} />
               </Box>
-            </CardContent>
-          </Card>
-        </Box>
-        
-        <Box sx={{ flex: '1 1 250px', minWidth: 250 }}>
-          <Card sx={{ height: '100%' }}>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Box>
-                  <Typography color="textSecondary" gutterBottom variant="h6">
-                    Today&apos;s Revenue
-                  </Typography>
-                  <Typography variant="h4" component="div">
-                    ৳{stats?.todayRevenue || 0}
-                  </Typography>
-                </Box>
-                <Avatar sx={{ bgcolor: 'warning.main' }}>
-                  <TrendingUpIcon />
-                </Avatar>
+              <Box>
+                <Typography variant="body2" color="textSecondary" sx={{ fontWeight: 500, fontFamily: 'Poppins, Arial, Helvetica, sans-serif' }}>
+                  Total Bookings
+                </Typography>
+                <Typography variant="h4" sx={{ fontWeight: 700, color: 'success.main', fontFamily: 'Poppins, Arial, Helvetica, sans-serif' }}>
+                  {stats?.totalBookings || 0}
+                </Typography>
               </Box>
-            </CardContent>
-          </Card>
-        </Box>
+            </Box>
+          </CardContent>
+        </Card>
+
+        <Card sx={{ borderRadius: 3, boxShadow: '0 2px 12px 0 rgba(153,27,27,0.08)' }}>
+          <CardContent>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Box sx={{ p: 1.5, bgcolor: 'warning.50', borderRadius: 2 }}>
+                <MoneyIcon sx={{ color: 'warning.main', fontSize: 28 }} />
+              </Box>
+              <Box>
+                <Typography variant="body2" color="textSecondary" sx={{ fontWeight: 500, fontFamily: 'Poppins, Arial, Helvetica, sans-serif' }}>
+                  Total Revenue
+                </Typography>
+                <Typography variant="h4" sx={{ fontWeight: 700, color: 'warning.main', fontFamily: 'Poppins, Arial, Helvetica, sans-serif' }}>
+                  ৳{stats?.totalRevenue || 0}
+                </Typography>
+              </Box>
+            </Box>
+          </CardContent>
+        </Card>
+
+        <Card sx={{ borderRadius: 3, boxShadow: '0 2px 12px 0 rgba(153,27,27,0.08)' }}>
+          <CardContent>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Box sx={{ p: 1.5, bgcolor: 'info.50', borderRadius: 2 }}>
+                <BuildIcon sx={{ color: 'info.main', fontSize: 28 }} />
+              </Box>
+              <Box>
+                <Typography variant="body2" color="textSecondary" sx={{ fontWeight: 500, fontFamily: 'Poppins, Arial, Helvetica, sans-serif' }}>
+                  Active Services
+                </Typography>
+                <Typography variant="h4" sx={{ fontWeight: 700, color: 'info.main', fontFamily: 'Poppins, Arial, Helvetica, sans-serif' }}>
+                  {services.filter(s => s.status === 'approved').length}
+                </Typography>
+              </Box>
+            </Box>
+          </CardContent>
+        </Card>
       </Box>
 
       {/* Recent Bookings */}
@@ -1307,31 +1351,71 @@ function AdminDashboard() {
                       )}
                     </TableCell>
                     <TableCell>
-                      {new Date(booking.scheduledDate).toISOString().slice(0, 10)}
-                      <br />
+                      <Typography variant="body2">
+                        {new Date(booking.scheduledDate).toISOString().slice(0, 10)}
+                      </Typography>
                       <Typography variant="caption" color="textSecondary">
                         {booking.scheduledTime}
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(booking.status)}`}>
-                          {booking.status.replace('_', ' ')}
-                        </span>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPaymentStatusBadge(booking.paymentStatus)}`}>
-                          {booking.paymentStatus}
-                        </span>
-                      </div>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                        <Chip 
+                          label={booking.status.replace('_', ' ')} 
+                          size="small"
+                          color={booking.status === 'completed' ? 'success' : 
+                                 booking.status === 'cancelled' ? 'error' : 'primary'}
+                        />
+                        {/* Show refund status if exists */}
+                        {booking.refund && booking.refund.refundStatus !== 'none' && (
+                          <Chip 
+                            label={`Refund: ${booking.refund.refundStatus}`}
+                            size="small"
+                            sx={{ 
+                              bgcolor: getRefundStatusBadge(booking.refund.refundStatus).split(' ')[0].replace('bg-', ''),
+                              color: getRefundStatusBadge(booking.refund.refundStatus).split(' ')[1].replace('text-', '')
+                            }}
+                          />
+                        )}
+                        {/* Show reschedule status if exists */}
+                        {booking.reschedule && booking.reschedule.status !== 'none' && (
+                          <Chip 
+                            label={`Reschedule: ${booking.reschedule.status}`}
+                            size="small"
+                            sx={{ 
+                              bgcolor: getRescheduleStatusBadge(booking.reschedule.status).split(' ')[0].replace('bg-', ''),
+                              color: getRescheduleStatusBadge(booking.reschedule.status).split(' ')[1].replace('text-', '')
+                            }}
+                          />
+                        )}
+                      </Box>
                     </TableCell>
-                    <TableCell>৳{booking.totalAmount}</TableCell>
                     <TableCell>
-                      <Box sx={{ display: 'flex', gap: 0.5 }}>
-                        <IconButton size="small" color="primary">
-                          <ViewIcon />
-                        </IconButton>
-                        <IconButton size="small" color="secondary">
-                          <EditIcon />
-                        </IconButton>
+                      <Typography variant="body2" fontWeight={600}>
+                        ৳{booking.totalAmount}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          startIcon={<ViewIcon />}
+                          onClick={() => {/* View booking details */}}
+                        >
+                          View
+                        </Button>
+                        {/* Refund management button */}
+                        {booking.refund && booking.refund.refundStatus === 'requested' && (
+                          <Button
+                            size="small"
+                            variant="contained"
+                            color="warning"
+                            onClick={() => openRefundModal(booking)}
+                          >
+                            Handle Refund
+                          </Button>
+                        )}
                       </Box>
                     </TableCell>
                   </TableRow>
@@ -1341,6 +1425,57 @@ function AdminDashboard() {
           </TableContainer>
         </CardContent>
       </Card>
+
+      {/* Refund Management Modal */}
+      {refundModalOpen && selectedBooking && (
+        <Dialog open={refundModalOpen} onClose={() => setRefundModalOpen(false)} maxWidth="sm" fullWidth>
+          <DialogTitle>Handle Refund Request</DialogTitle>
+          <DialogContent>
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="body2" color="textSecondary" gutterBottom>
+                Refund Details:
+              </Typography>
+              <Typography variant="body1" fontWeight={600}>
+                Amount: ৳{selectedBooking.refund?.refundAmount}
+              </Typography>
+              <Typography variant="body2" color="textSecondary">
+                Reason: {selectedBooking.refund?.refundReason}
+              </Typography>
+            </Box>
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <InputLabel>Action</InputLabel>
+              <Select
+                value={refundAction}
+                label="Action"
+                onChange={(e) => setRefundAction(e.target.value as 'approve' | 'reject' | 'process')}
+              >
+                <MenuItem value="approve">Approve</MenuItem>
+                <MenuItem value="reject">Reject</MenuItem>
+                <MenuItem value="process">Process Refund</MenuItem>
+              </Select>
+            </FormControl>
+            <TextField
+              fullWidth
+              multiline
+              rows={3}
+              label="Note (Optional)"
+              value={refundNote}
+              onChange={(e) => setRefundNote(e.target.value)}
+              placeholder="Add a note about your decision"
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setRefundModalOpen(false)}>Cancel</Button>
+            <Button 
+              onClick={handleRefundAction} 
+              variant="contained"
+              disabled={processingRefund}
+            >
+              {processingRefund ? 'Processing...' : `${refundAction.charAt(0).toUpperCase() + refundAction.slice(1)} Refund`}
+            </Button>
+          </DialogActions>
+        </Dialog>
+      )}
     </Box>
   );
 

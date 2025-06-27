@@ -1,6 +1,7 @@
 'use client';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
+import { useState, useEffect } from 'react';
 
 // Create a custom theme
 const theme = createTheme({
@@ -96,6 +97,27 @@ const theme = createTheme({
 });
 
 export default function ThemeWrapper({ children }: { children: React.ReactNode }) {
+  const [isClient, setIsClient] = useState(false);
+
+  // Mark as client-side after hydration to prevent SSR/client mismatch
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  // Don't render MUI components until client-side hydration is complete
+  if (!isClient) {
+    return (
+      <div className="min-h-screen bg-[#F4F4F4]">
+        <div className="animate-pulse">
+          <div className="h-16 bg-gradient-to-br from-[#991B1B] to-[#7F1D1D]"></div>
+          <div className="flex items-center justify-center min-h-screen">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#991B1B]"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />

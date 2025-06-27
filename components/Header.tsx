@@ -7,19 +7,32 @@ export default function Header() {
   const { user, isAuthenticated, logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [isClient, setIsClient] = useState(false);
 
-  // Handle scroll effect
+  // Mark as client-side after hydration
   useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  // Handle scroll effect - only on client-side
+  useEffect(() => {
+    if (!isClient) return;
+
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 10);
     };
 
+    // Set initial scroll state
+    handleScroll();
+
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  }, [isClient]);
 
-  // Close mobile menu when clicking outside
+  // Close mobile menu when clicking outside - only on client-side
   useEffect(() => {
+    if (!isClient) return;
+
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
       if (mobileMenuOpen && !target.closest('header')) {
@@ -32,14 +45,31 @@ export default function Header() {
     }
 
     return () => document.removeEventListener('click', handleClickOutside);
-  }, [mobileMenuOpen]);
+  }, [mobileMenuOpen, isClient]);
 
   const handleLogout = () => {
     logout();
     setMobileMenuOpen(false);
-    // Redirect to home page after logout
-    window.location.href = '/';
+    // Use router instead of window.location for better UX
+    if (typeof window !== 'undefined') {
+      window.location.href = '/';
+    }
   };
+
+  // Don't render until client-side hydration is complete
+  if (!isClient) {
+    return (
+      <header className="bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-primary-dark)] shadow-md sticky top-0 z-40 font-poppins py-3">
+        <div className="max-w-7xl mx-auto flex justify-between items-center px-4">
+          <div className="flex items-center gap-2 font-bold text-2xl tracking-tight">
+            <span className="text-3xl">🛠️</span>
+            <span className="font-poppins text-white drop-shadow font-bold">Mechanic <span className="text-accent drop-shadow">BD</span></span>
+          </div>
+          <div className="animate-pulse bg-white/20 h-8 w-32 rounded"></div>
+        </div>
+      </header>
+    );
+  }
 
   return (
     <header className={`bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-primary-dark)] shadow-md sticky top-0 z-40 font-poppins transition-all duration-300 ${isScrolled ? 'py-2' : 'py-3'}`}>

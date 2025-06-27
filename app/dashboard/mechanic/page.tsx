@@ -28,6 +28,18 @@ interface Booking {
   totalAmount: number;
   paymentStatus: string;
   customerRating?: number;
+  refund?: {
+    refundStatus: string;
+    refundAmount?: number;
+    refundReason?: string;
+  };
+  reschedule?: {
+    status: string;
+    newDate?: string;
+    newTime?: string;
+    note?: string;
+    requestedBy?: string;
+  };
 }
 
 interface Stats {
@@ -47,6 +59,10 @@ function MechanicDashboardContent() {
   const [error, setError] = useState('');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [completingId, setCompletingId] = useState<string | null>(null);
+  const [rescheduleModalOpen, setRescheduleModalOpen] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [rescheduleResponse, setRescheduleResponse] = useState('');
+  const [processingReschedule, setProcessingReschedule] = useState(false);
 
   useEffect(() => {
     fetchBookings();
@@ -95,6 +111,50 @@ function MechanicDashboardContent() {
     }
   };
 
+  const handleRescheduleResponse = async (action: 'accept' | 'decline') => {
+    if (!selectedBooking) return;
+    
+    setProcessingReschedule(true);
+    try {
+      await api.patch(`/bookings/${selectedBooking._id}/reschedule`, {
+        action,
+        note: rescheduleResponse
+      });
+      
+      // Update booking in state
+      setBookings(bookings.map(b => 
+        b._id === selectedBooking._id 
+          ? { 
+              ...b, 
+              reschedule: {
+                ...b.reschedule,
+                status: action === 'accept' ? 'accepted' : 'declined'
+              },
+              // Update scheduled date/time if accepted
+              ...(action === 'accept' && b.reschedule ? {
+                scheduledDate: b.reschedule.newDate,
+                scheduledTime: b.reschedule.newTime
+              } : {})
+            }
+          : b
+      ));
+      
+      setRescheduleModalOpen(false);
+      setSelectedBooking(null);
+      setRescheduleResponse('');
+      alert(`Reschedule ${action}ed successfully!`);
+    } catch (err: any) {
+      alert(err.response?.data?.message || `Failed to ${action} reschedule`);
+    } finally {
+      setProcessingReschedule(false);
+    }
+  };
+
+  const openRescheduleModal = (booking: Booking) => {
+    setSelectedBooking(booking);
+    setRescheduleModalOpen(true);
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending': return 'bg-yellow-100 text-yellow-900';
@@ -110,6 +170,25 @@ function MechanicDashboardContent() {
     switch (status) {
       case 'paid': return 'bg-green-100 text-green-900';
       case 'unpaid': return 'bg-yellow-100 text-yellow-900';
+      default: return 'bg-gray-100 text-gray-900';
+    }
+  };
+
+  const getRefundStatusBadge = (refundStatus: string) => {
+    switch (refundStatus) {
+      case 'requested': return 'bg-yellow-100 text-yellow-900';
+      case 'approved': return 'bg-blue-100 text-blue-900';
+      case 'rejected': return 'bg-red-100 text-red-900';
+      case 'processed': return 'bg-green-100 text-green-900';
+      default: return 'bg-gray-100 text-gray-900';
+    }
+  };
+
+  const getRescheduleStatusBadge = (rescheduleStatus: string) => {
+    switch (rescheduleStatus) {
+      case 'requested': return 'bg-yellow-100 text-yellow-900';
+      case 'accepted': return 'bg-green-100 text-green-900';
+      case 'declined': return 'bg-red-100 text-red-900';
       default: return 'bg-gray-100 text-gray-900';
     }
   };
@@ -257,7 +336,7 @@ function MechanicDashboardContent() {
                     <div className="flex-1">
                       <h3 className="text-xl font-semibold text-[var(--color-primary-dark)]">{booking.service.title}</h3>
                       <p className="text-sm text-[var(--color-text-secondary)] mb-2">{booking.service.category}</p>
-                      <div className="flex items-center gap-2 mb-2">
+                      <div className="flex items-center gap-2 mb-2 flex-wrap">
                         <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusBadge(booking.status)}`}>
                           {booking.status.replace('_', ' ')}
                         </span>
@@ -265,6 +344,18 @@ function MechanicDashboardContent() {
                           {booking.paymentStatus}
                         </span>
                         <span className="text-sm font-medium text-[var(--color-primary)]">৳{booking.totalAmount}</span>
+                        {/* Show refund status if exists */}
+                        {booking.refund && booking.refund.refundStatus !== 'none' && (
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${getRefundStatusBadge(booking.refund.refundStatus)}`}>
+                            Refund: {booking.refund.refundStatus}
+                          </span>
+                        )}
+                        {/* Show reschedule status if exists */}
+                        {booking.reschedule && booking.reschedule.status !== 'none' && (
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${getRescheduleStatusBadge(booking.reschedule.status)}`}>
+                            Reschedule: {booking.reschedule.status}
+                          </span>
+                        )}
                       </div>
                     </div>
                     <div className="text-right">
@@ -288,13 +379,25 @@ function MechanicDashboardContent() {
                       </div>
                     </div>
                     
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 flex-wrap">
                       <Link 
                         href={`/dashboard/mechanic/booking/${booking._id}`}
                         className="bg-[var(--color-primary)] text-white px-4 py-2 rounded-lg font-medium hover:bg-[var(--color-primary-dark)] transition"
                       >
                         View Details
                       </Link>
+                      
+                      {/* Reschedule response buttons */}
+                      {booking.reschedule && booking.reschedule.status === 'requested' && 
+                       booking.reschedule.requestedBy !== user?._id && (
+                        <button
+                          onClick={() => openRescheduleModal(booking)}
+                          className="bg-purple-100 text-purple-900 px-4 py-2 rounded-lg font-medium hover:bg-purple-200 transition"
+                        >
+                          Respond to Reschedule
+                        </button>
+                      )}
+                      
                       {booking.status === 'confirmed' && (
                         <button
                           onClick={() => handleCompleteService(booking._id)}
@@ -320,6 +423,65 @@ function MechanicDashboardContent() {
             </div>
           )}
         </div>
+
+        {/* Reschedule Response Modal */}
+        {rescheduleModalOpen && selectedBooking && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
+              <h3 className="text-xl font-semibold mb-4">Respond to Reschedule Request</h3>
+              <div className="mb-4">
+                <p className="text-sm text-gray-600 mb-2">
+                  Customer wants to reschedule from:
+                </p>
+                <p className="font-medium">
+                  {new Date(selectedBooking.scheduledDate).toISOString().slice(0, 10)} at {selectedBooking.scheduledTime}
+                </p>
+                <p className="text-sm text-gray-600 mb-2 mt-2">To:</p>
+                <p className="font-medium">
+                  {selectedBooking.reschedule?.newDate && new Date(selectedBooking.reschedule.newDate).toISOString().slice(0, 10)} at {selectedBooking.reschedule?.newTime}
+                </p>
+                {selectedBooking.reschedule?.note && (
+                  <div className="mt-2">
+                    <p className="text-sm text-gray-600">Note:</p>
+                    <p className="text-sm bg-gray-50 p-2 rounded">{selectedBooking.reschedule.note}</p>
+                  </div>
+                )}
+              </div>
+              <div className="mb-4">
+                <label className="block text-sm font-medium mb-1">Your Response Note (Optional)</label>
+                <textarea
+                  value={rescheduleResponse}
+                  onChange={(e) => setRescheduleResponse(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded-lg"
+                  rows={2}
+                  placeholder="Add a note to your response"
+                />
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setRescheduleModalOpen(false)}
+                  className="flex-1 bg-gray-100 text-gray-900 px-4 py-2 rounded-lg font-medium hover:bg-gray-200 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleRescheduleResponse('decline')}
+                  disabled={processingReschedule}
+                  className="flex-1 bg-red-100 text-red-900 px-4 py-2 rounded-lg font-medium hover:bg-red-200 transition disabled:opacity-50"
+                >
+                  {processingReschedule ? 'Processing...' : 'Decline'}
+                </button>
+                <button
+                  onClick={() => handleRescheduleResponse('accept')}
+                  disabled={processingReschedule}
+                  className="flex-1 bg-green-100 text-green-900 px-4 py-2 rounded-lg font-medium hover:bg-green-200 transition disabled:opacity-50"
+                >
+                  {processingReschedule ? 'Processing...' : 'Accept'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
