@@ -57,7 +57,7 @@ export default function AddServicePage() {
         basePrice: Number(form.basePrice),
         serviceArea: form.serviceArea
       });
-      setSuccess('Service added successfully!');
+      setSuccess('Service added successfully! Your service is pending admin approval and will be visible to customers once approved.');
       setForm({ title: '', description: '', category: '', basePrice: '', serviceArea: '' });
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to add service');

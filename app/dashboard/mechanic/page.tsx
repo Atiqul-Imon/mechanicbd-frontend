@@ -6,8 +6,6 @@ import ProtectedRoute from '../../../components/ProtectedRoute';
 import Link from 'next/link';
 import PageLoader from '../../../components/PageLoader';
 import ErrorMessage from '../../../components/ErrorMessage';
-import { toast } from 'react-hot-toast';
-import { useRouter } from 'next/navigation';
 
 interface Booking {
   _id: string;
@@ -49,7 +47,6 @@ function MechanicDashboardContent() {
   const [error, setError] = useState('');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [completingId, setCompletingId] = useState<string | null>(null);
-  const router = useRouter();
 
   useEffect(() => {
     fetchBookings();
@@ -59,26 +56,10 @@ function MechanicDashboardContent() {
     setLoading(true);
     setError('');
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        router.push('/login');
-        return;
-      }
-
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/bookings/mechanic`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setBookings(data.data.bookings);
-      } else {
-        setError('Failed to fetch bookings');
-      }
-    } catch (error) {
-      setError('Error fetching bookings');
+      const response = await get('/bookings/mechanic');
+      setBookings(response.data.data.bookings);
+    } catch (error: any) {
+      setError(error.response?.data?.message || 'Failed to fetch bookings');
     } finally {
       setLoading(false);
     }
@@ -105,25 +86,10 @@ function MechanicDashboardContent() {
 
     setCompletingId(bookingId);
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/bookings/${bookingId}/complete`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({})
-      });
-
-      if (response.ok) {
-        toast.success('Service marked as completed');
-        fetchBookings(); // Refresh the list
-      } else {
-        const error = await response.json();
-        toast.error(error.message || 'Failed to complete service');
-      }
-    } catch (error) {
-      toast.error('Error completing service');
+      await api.patch(`/bookings/${bookingId}/complete`, {});
+      fetchBookings(); // Refresh the list
+    } catch (error: any) {
+      alert(error.response?.data?.message || 'Failed to complete service');
     } finally {
       setCompletingId(null);
     }

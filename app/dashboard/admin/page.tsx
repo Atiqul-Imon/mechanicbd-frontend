@@ -124,6 +124,7 @@ interface Service {
   basePrice: number;
   serviceArea: string;
   isActive: boolean;
+  status: string;
   mechanic: {
     _id: string;
     fullName: string;
@@ -372,21 +373,38 @@ function ServiceManagement({ services, onRefresh }: { services: Service[]; onRef
     }
   };
 
-  const handleDeleteService = async () => {
-    if (!serviceToDelete) return;
-    
+  const handleApprove = async (serviceId: string) => {
     setLoading(true);
     try {
-      await api.delete(`/services/${serviceToDelete._id}`);
-      setSnackbar({ open: true, message: 'Service deleted successfully', severity: 'success' });
+      await api.patch(`/services/admin/${serviceId}/approve`);
+      setSnackbar({ open: true, message: 'Service approved', severity: 'success' });
       onRefresh();
-      setDeleteDialogOpen(false);
-      setServiceToDelete(null);
-    } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to delete service';
-      setSnackbar({ open: true, message: errorMessage, severity: 'error' });
+    } catch (err: any) {
+      setSnackbar({ open: true, message: err.response?.data?.message || 'Failed to approve service', severity: 'error' });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleReject = async (serviceId: string) => {
+    setLoading(true);
+    try {
+      await api.patch(`/services/admin/${serviceId}/reject`);
+      setSnackbar({ open: true, message: 'Service rejected', severity: 'success' });
+      onRefresh();
+    } catch (err: any) {
+      setSnackbar({ open: true, message: err.response?.data?.message || 'Failed to reject service', severity: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getStatusChip = (status: string) => {
+    switch (status) {
+      case 'pending': return <Chip label="Pending" color="warning" size="small" />;
+      case 'approved': return <Chip label="Approved" color="success" size="small" />;
+      case 'rejected': return <Chip label="Rejected" color="error" size="small" />;
+      default: return <Chip label={status} size="small" />;
     }
   };
 
@@ -462,11 +480,11 @@ function ServiceManagement({ services, onRefresh }: { services: Service[]; onRef
               </TableRow>
             ) : (
               filteredServices.map(service => (
-                <TableRow key={service._id}>
+                <TableRow key={service?._id || Math.random()}>
                   <TableCell>
                     <Box sx={{ maxWidth: 200 }}>
                       <Typography variant="body2" fontWeight={600} noWrap>
-                        {service.title}
+                        {service?.title || <i>Service missing</i>}
                       </Typography>
                       <Typography variant="caption" color="textSecondary" sx={{ 
                         display: '-webkit-box',
@@ -474,49 +492,45 @@ function ServiceManagement({ services, onRefresh }: { services: Service[]; onRef
                         WebkitBoxOrient: 'vertical',
                         overflow: 'hidden'
                       }}>
-                        {service.description}
+                        {service?.description || ''}
                       </Typography>
                     </Box>
                   </TableCell>
                   <TableCell>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <span>{getCategoryIcon(service.category)}</span>
-                      <span>{service.category}</span>
+                      <span>{service ? getCategoryIcon(service.category) : ''}</span>
+                      <span>{service?.category || ''}</span>
                     </Box>
                   </TableCell>
                   <TableCell>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <Avatar sx={{ width: 24, height: 24 }}>
-                        {service.mechanic.fullName.charAt(0)}
+                        {service?.mechanic?.fullName?.charAt(0) || '?'}
                       </Avatar>
                       <Box>
-                        <Typography variant="body2">{service.mechanic.fullName}</Typography>
+                        <Typography variant="body2">{service?.mechanic?.fullName || <i>Unknown</i>}</Typography>
                         <Typography variant="caption" color="textSecondary">
-                          {service.mechanic.phoneNumber}
+                          {service?.mechanic?.phoneNumber || ''}
                         </Typography>
                       </Box>
                     </Box>
                   </TableCell>
                   <TableCell>
                     <Typography variant="body2" fontWeight={600}>
-                      ৳{service.basePrice}
+                      ৳{service?.basePrice ?? ''}
                     </Typography>
                   </TableCell>
                   <TableCell>
                     <Typography variant="body2" noWrap>
-                      {service.serviceArea}
+                      {service?.serviceArea || ''}
                     </Typography>
                   </TableCell>
                   <TableCell>
-                    <Chip
-                      label={service.isActive ? 'Active' : 'Inactive'}
-                      color={service.isActive ? 'success' : 'default'}
-                      size="small"
-                    />
+                    {getStatusChip(service?.status || '')}
                   </TableCell>
                   <TableCell>
                     <Typography variant="body2">
-                      {new Date(service.createdAt).toISOString().slice(0, 10)}
+                      {service?.createdAt ? new Date(service.createdAt).toISOString().slice(0, 10) : ''}
                     </Typography>
                   </TableCell>
                   <TableCell>
@@ -524,24 +538,47 @@ function ServiceManagement({ services, onRefresh }: { services: Service[]; onRef
                       <IconButton
                         size="small"
                         color="primary"
-                        onClick={() => { setSelectedService(service); setDetailsOpen(true); }}
+                        onClick={() => { if (service) { setSelectedService(service); setDetailsOpen(true); } }}
+                        disabled={!service}
                       >
                         <ViewIcon />
                       </IconButton>
+                      {service?.status === 'pending' && (
+                        <>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            color="success"
+                            onClick={() => service && handleApprove(service._id)}
+                            disabled={loading || !service}
+                          >
+                            Approve
+                          </Button>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            color="error"
+                            onClick={() => service && handleReject(service._id)}
+                            disabled={loading || !service}
+                          >
+                            Reject
+                          </Button>
+                        </>
+                      )}
                       <Button
                         size="small"
                         variant="outlined"
-                        color={service.isActive ? 'error' : 'success'}
-                        onClick={() => handleStatusToggle(service._id)}
-                        disabled={loading}
+                        color={service?.isActive ? 'error' : 'success'}
+                        onClick={() => service && handleStatusToggle(service._id)}
+                        disabled={loading || !service}
                       >
-                        {service.isActive ? 'Deactivate' : 'Activate'}
+                        {service?.isActive ? 'Deactivate' : 'Activate'}
                       </Button>
                       <IconButton
                         size="small"
                         color="error"
-                        onClick={() => { setServiceToDelete(service); setDeleteDialogOpen(true); }}
-                        disabled={loading}
+                        onClick={() => { if (service) { setServiceToDelete(service); setDeleteDialogOpen(true); } }}
+                        disabled={loading || !service}
                       >
                         <DeleteIcon />
                       </IconButton>
@@ -580,11 +617,7 @@ function ServiceManagement({ services, onRefresh }: { services: Service[]; onRef
                 </Box>
                 <Box sx={{ flex: '1 1 200px' }}>
                   <Typography variant="subtitle2" color="textSecondary">Status</Typography>
-                  <Chip
-                    label={selectedService.isActive ? 'Active' : 'Inactive'}
-                    color={selectedService.isActive ? 'success' : 'default'}
-                    size="small"
-                  />
+                  {getStatusChip(selectedService.status)}
                 </Box>
               </Box>
               
@@ -624,7 +657,21 @@ function ServiceManagement({ services, onRefresh }: { services: Service[]; onRef
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDeleteDialogOpen(false)} disabled={loading}>Cancel</Button>
-          <Button onClick={handleDeleteService} color="error" variant="contained" disabled={loading}>
+          <Button onClick={() => {
+            setLoading(true);
+            api.delete(`/services/${serviceToDelete?._id}`)
+              .then(() => {
+                setSnackbar({ open: true, message: 'Service deleted successfully', severity: 'success' });
+                onRefresh();
+                setDeleteDialogOpen(false);
+                setServiceToDelete(null);
+              })
+              .catch((err: unknown) => {
+                const errorMessage = err instanceof Error ? err.message : 'Failed to delete service';
+                setSnackbar({ open: true, message: errorMessage, severity: 'error' });
+              })
+              .finally(() => setLoading(false));
+          }} color="error" variant="contained" disabled={loading}>
             {loading ? 'Deleting...' : 'Delete'}
           </Button>
         </DialogActions>
@@ -1237,7 +1284,7 @@ function AdminDashboard() {
                         </Box>
                       </Box>
                     </TableCell>
-                    <TableCell>{booking.service.title}</TableCell>
+                    <TableCell>{booking.service?.title || <i>Service missing</i>}</TableCell>
                     <TableCell>
                       {booking.mechanic ? (
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
