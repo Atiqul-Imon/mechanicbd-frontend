@@ -6,7 +6,7 @@ const nextConfig: NextConfig = {
   
   // Optimize images
   images: {
-    domains: ['localhost'],
+    domains: ['localhost', 'mechanicbd-backend.onrender.com'],
     unoptimized: true, // For static export compatibility
   },
   

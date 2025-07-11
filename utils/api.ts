@@ -1,8 +1,10 @@
 import axios, { AxiosError, AxiosResponse } from 'axios';
 
-export const API_BASE = process.env.NEXT_PUBLIC_API_URL
-  ? `${process.env.NEXT_PUBLIC_API_URL}/api`
-  : 'http://localhost:5000/api';
+export const API_BASE = process.env.NODE_ENV === 'development' 
+  ? 'http://localhost:5000/api'
+  : process.env.NEXT_PUBLIC_API_URL
+    ? `${process.env.NEXT_PUBLIC_API_URL}/api`
+    : 'https://mechanicbd-backend.onrender.com/api';
 
 // Utility function to safely access localStorage
 const getLocalStorageItem = (key: string): string | null => {
