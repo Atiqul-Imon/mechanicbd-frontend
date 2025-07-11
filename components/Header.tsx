@@ -111,7 +111,7 @@ export default function Header() {
                   </button>
                   <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl py-2 z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 border border-gray-100 transform scale-95 group-hover:scale-100">
                     <Link href="/profile" className="block px-4 py-2 text-sm text-[var(--color-primary)] hover:bg-[var(--color-bg-light)] hover:text-accent transition-colors">Profile</Link>
-                    <Link href="/bookings" className="block px-4 py-2 text-sm text-[var(--color-primary)] hover:bg-[var(--color-bg-light)] hover:text-accent transition-colors">My Bookings</Link>
+                    <Link href="/dashboard/customer" className="block px-4 py-2 text-sm text-[var(--color-primary)] hover:bg-[var(--color-bg-light)] hover:text-accent transition-colors">My Bookings</Link>
                     <button 
                       onClick={handleLogout}
                       className="block w-full text-left px-4 py-2 text-sm !text-white hover:bg-[var(--color-bg-light)] hover:text-accent transition-colors"
@@ -212,7 +212,7 @@ export default function Header() {
                 Profile
               </Link>
               <Link 
-                href="/bookings" 
+                href="/dashboard/customer" 
                 className="block py-3 px-4 font-medium bg-accent text-white rounded-lg hover:bg-[var(--color-primary-dark)] hover:text-accent transition-all duration-200 transform hover:scale-105"
                 onClick={() => setMobileMenuOpen(false)}
               >
