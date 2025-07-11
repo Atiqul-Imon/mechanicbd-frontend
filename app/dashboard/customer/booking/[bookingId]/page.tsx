@@ -1,14 +1,14 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import LoadingSpinner from "@/components/LoadingSpinner";
-import ErrorMessage from "@/components/ErrorMessage";
+import LoadingSpinner from "../../../../../components/LoadingSpinner";
+import ErrorMessage from "../../../../../components/ErrorMessage";
 import {
   getBookingById,
   cancelBooking,
   requestRefund,
   requestReschedule,
-} from "@/utils/api";
+} from "../../../../../utils/api";
 
 const STATUS_COLORS = {
   pending: "bg-yellow-100 text-yellow-800 border-yellow-300",

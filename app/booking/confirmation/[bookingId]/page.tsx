@@ -170,7 +170,7 @@ export default function BookingConfirmationPage() {
                   <h4 className="text-lg font-semibold text-[var(--color-text-main)] mb-4">Service Location</h4>
                   <p className="text-[var(--color-text-main)]">
                     {typeof booking.serviceLocation === 'object' && booking.serviceLocation !== null && 'address' in booking.serviceLocation
-                      ? booking.serviceLocation.address
+                      ? (booking.serviceLocation as { address: string }).address
                       : typeof booking.serviceLocation === 'string'
                         ? booking.serviceLocation
                         : 'N/A'}
