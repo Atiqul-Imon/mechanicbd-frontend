@@ -1,19 +1,19 @@
 import Link from 'next/link';
 
 const services = [
-  { icon: '🔧', name: 'Car Repair', description: 'Professional automotive services' },
+  { icon: '🔧', name: 'Car Repair', description: 'Reliable automotive services' },
   { icon: '⚡', name: 'Electrical', description: 'Expert electrical solutions' },
   { icon: '🚰', name: 'Plumbing', description: 'Reliable plumbing services' },
   { icon: '🏠', name: 'Appliances', description: 'Home appliance repair' },
   { icon: '🔨', name: 'Carpentry', description: 'Quality woodwork services' },
-  { icon: '🎨', name: 'Painting', description: 'Professional painting work' },
+  { icon: '🎨', name: 'Painting', description: 'Quality painting work' },
   { icon: '🧹', name: 'Cleaning', description: 'Thorough cleaning services' },
 ];
 
 const testimonials = [
   {
     name: 'Md. Rahim',
-    text: 'Mechanic BD made it so easy to find a trusted mechanic. The service was fast and professional!',
+    text: 'Mechanic BD made it so easy to find a trusted mechanic. The service was fast and reliable!',
     location: 'Dhaka',
     rating: 5,
   },
@@ -68,7 +68,7 @@ export default function Home() {
             </p>
             <p className="mb-10 text-lg md:text-xl text-white max-w-3xl mx-auto leading-relaxed">
               Book trusted mechanics and home services easily, anywhere in Bangladesh. 
-              Professional, reliable, and convenient solutions for all your needs.
+              Reliable and convenient solutions for all your needs.
             </p>
           </div>
           
@@ -127,7 +127,7 @@ export default function Home() {
             Popular Services
           </h2>
           <p className="text-lg text-[var(--color-text-secondary)] max-w-2xl mx-auto">
-            From car repairs to home services, we've got you covered with professional solutions
+            From car repairs to home services, we've got you covered with reliable solutions
           </p>
         </div>
         
@@ -155,7 +155,7 @@ export default function Home() {
               How It Works
             </h2>
             <p className="text-lg text-[var(--color-text-secondary)] max-w-2xl mx-auto">
-              Get professional services in just three simple steps
+              Get reliable services in just three simple steps
             </p>
           </div>
           
@@ -193,7 +193,7 @@ export default function Home() {
                 </div>
                 <h3 className="text-xl font-semibold mb-4 text-[var(--color-text-main)]">3. Get the Job Done</h3>
                 <p className="text-[var(--color-text-secondary)] leading-relaxed">
-                  A trusted professional arrives and completes your service to your satisfaction.
+                  A trusted mechanic arrives and completes your service to your satisfaction.
                 </p>
               </div>
             </div>
