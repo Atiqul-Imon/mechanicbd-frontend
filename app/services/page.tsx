@@ -69,14 +69,14 @@ const mockServices: Service[] = [
 ];
 
 const categories = [
-  { id: 'all', name: 'All Services', icon: '🔧' },
-  { id: 'HVAC', name: 'HVAC', icon: '❄️' },
-  { id: 'Electrical', name: 'Electrical', icon: '⚡' },
-  { id: 'Plumbing', name: 'Plumbing', icon: '🚰' },
-  { id: 'Appliances', name: 'Appliances', icon: '🏠' },
-  { id: 'Carpentry', name: 'Carpentry', icon: '🔨' },
-  { id: 'Painting', name: 'Painting', icon: '🎨' },
-  { id: 'Cleaning', name: 'Cleaning', icon: '🧹' }
+  { id: 'all', name: 'All Services' },
+  { id: 'HVAC', name: 'HVAC' },
+  { id: 'Electrical', name: 'Electrical' },
+  { id: 'Plumbing', name: 'Plumbing' },
+  { id: 'Appliances', name: 'Appliances' },
+  { id: 'Carpentry', name: 'Carpentry' },
+  { id: 'Painting', name: 'Painting' },
+  { id: 'Cleaning', name: 'Cleaning' }
 ];
 
 export default function ServicesPage() {
@@ -195,7 +195,6 @@ export default function ServicesPage() {
       <ErrorMessage
         title="Failed to Load Services"
         message={error}
-        icon="🔧"
         backUrl="/"
         backText="Go Home"
       />
@@ -239,7 +238,6 @@ export default function ServicesPage() {
                     : 'bg-white text-[var(--color-text-main)] hover:bg-[var(--color-primary)] hover:text-white'
                 }`}
               >
-                <span className="mr-2">{category.icon}</span>
                 {category.name}
               </button>
             ))}
@@ -293,7 +291,6 @@ export default function ServicesPage() {
           </div>
         ) : services.length === 0 ? (
           <div className="text-center py-16">
-            <div className="text-6xl mb-4">🔍</div>
             <h3 className="text-xl font-semibold text-[var(--color-text-main)] mb-2">No services found</h3>
             <p className="text-[var(--color-text-secondary)] mb-4">
               {searchFilters.q || selectedCategory !== 'all' 
@@ -315,9 +312,7 @@ export default function ServicesPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {services.map((service) => (
                 <div key={service._id} className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100 transform hover:-translate-y-1">
-                  <div className="h-48 bg-gradient-to-br from-[var(--color-primary)]/10 to-[var(--color-primary-dark)]/5 flex items-center justify-center">
-                    <span className="text-6xl">🔧</span>
-                  </div>
+                  <div className="h-48 bg-gradient-to-br from-[var(--color-primary)]/10 to-[var(--color-primary-dark)]/5"></div>
                   <div className="p-6">
                     <div className="flex items-center justify-between mb-3">
                       <span className="inline-flex items-center px-3 py-1 bg-[var(--color-primary)]/10 text-[var(--color-primary)] text-xs font-medium rounded-full">

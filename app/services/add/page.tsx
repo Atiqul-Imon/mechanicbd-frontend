@@ -5,14 +5,14 @@ import { API_BASE, post } from '../../../utils/api';
 import { useAuth } from '../../../contexts/AuthContext';
 
 const CATEGORY_OPTIONS = [
-  { value: 'HVAC', label: 'HVAC', icon: '❄️', description: 'Heating, ventilation, and air conditioning services' },
-  { value: 'Electrical', label: 'Electrical', icon: '⚡', description: 'Electrical repairs and installations' },
-  { value: 'Plumbing', label: 'Plumbing', icon: '🚰', description: 'Plumbing and water system services' },
-  { value: 'Appliances', label: 'Appliances', icon: '🔌', description: 'Home appliance repair and maintenance' },
-  { value: 'Carpentry', label: 'Carpentry', icon: '🔨', description: 'Woodwork and furniture services' },
-  { value: 'Painting', label: 'Painting', icon: '🎨', description: 'Interior and exterior painting services' },
-  { value: 'Cleaning', label: 'Cleaning', icon: '🧹', description: 'Professional cleaning services' },
-  { value: 'Other', label: 'Other', icon: '🛠️', description: 'Other specialized services' }
+  { value: 'HVAC', label: 'HVAC', description: 'Heating, ventilation, and air conditioning services' },
+  { value: 'Electrical', label: 'Electrical', description: 'Electrical repairs and installations' },
+  { value: 'Plumbing', label: 'Plumbing', description: 'Plumbing and water system services' },
+  { value: 'Appliances', label: 'Appliances', description: 'Home appliance repair and maintenance' },
+  { value: 'Carpentry', label: 'Carpentry', description: 'Woodwork and furniture services' },
+  { value: 'Painting', label: 'Painting', description: 'Interior and exterior painting services' },
+  { value: 'Cleaning', label: 'Cleaning', description: 'Professional cleaning services' },
+  { value: 'Other', label: 'Other', description: 'Other specialized services' }
 ];
 
 const SERVICE_AREAS = [
@@ -247,7 +247,6 @@ export default function AddServicePage() {
                           className="sr-only"
                         />
                         <div className="flex items-center space-x-3">
-                          <span className="text-2xl">{category.icon}</span>
                           <div>
                             <div className="font-semibold text-[var(--color-text-main)]">
                               {category.label}

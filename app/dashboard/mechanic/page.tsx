@@ -52,12 +52,33 @@ interface Stats {
   inProgressBookings: number;
 }
 
+interface Service {
+  _id: string;
+  title: string;
+  description: string;
+  category: string;
+  basePrice: number;
+  serviceArea: string;
+  status: 'pending' | 'approved' | 'rejected';
+  isActive: boolean;
+  isAvailable: boolean;
+  averageRating: number;
+  totalReviews: number;
+  totalBookings: number;
+  completedBookings: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 function MechanicDashboardContent() {
   const { user, login } = useAuth();
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [servicesLoading, setServicesLoading] = useState(false);
   const [error, setError] = useState('');
+  const [servicesError, setServicesError] = useState('');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [completingId, setCompletingId] = useState<string | null>(null);
   const [rescheduleModalOpen, setRescheduleModalOpen] = useState(false);
@@ -72,6 +93,7 @@ function MechanicDashboardContent() {
 
   useEffect(() => {
     fetchBookings();
+    fetchServices();
   }, []);
 
   const fetchBookings = async () => {
@@ -84,6 +106,19 @@ function MechanicDashboardContent() {
       setError(error.response?.data?.message || 'Failed to fetch bookings');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchServices = async () => {
+    setServicesLoading(true);
+    setServicesError('');
+    try {
+      const response = await get('/services/mechanic/my');
+      setServices(response.data.data.services || []);
+    } catch (error: any) {
+      setServicesError(error.response?.data?.message || 'Failed to fetch services');
+    } finally {
+      setServicesLoading(false);
     }
   };
 
@@ -197,6 +232,50 @@ function MechanicDashboardContent() {
       case 'declined': return 'bg-red-100 text-red-900';
       default: return 'bg-gray-100 text-gray-900';
     }
+  };
+
+  const getServiceStatusBadge = (status: string) => {
+    switch (status) {
+      case 'pending': return 'bg-yellow-100 text-yellow-900';
+      case 'approved': return 'bg-green-100 text-green-900';
+      case 'rejected': return 'bg-red-100 text-red-900';
+      default: return 'bg-gray-100 text-gray-900';
+    }
+  };
+
+  const getServiceStatusMessage = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return {
+          title: 'Under Review',
+          message: 'Your service is being reviewed by our admin team. This usually takes 24-48 hours.',
+          icon: '⏳'
+        };
+      case 'approved':
+        return {
+          title: 'Live & Active',
+          message: 'Your service is live and visible to customers. You can receive bookings!',
+          icon: '✅'
+        };
+      case 'rejected':
+        return {
+          title: 'Not Approved',
+          message: 'Your service was not approved. Please review and update the details.',
+          icon: '❌'
+        };
+      default:
+        return {
+          title: 'Unknown Status',
+          message: 'Status information is not available.',
+          icon: '❓'
+        };
+    }
+  };
+
+  const getServiceAvailabilityBadge = (isActive: boolean, isAvailable: boolean) => {
+    if (!isActive) return 'bg-red-100 text-red-900';
+    if (!isAvailable) return 'bg-gray-100 text-gray-900';
+    return 'bg-green-100 text-green-900';
   };
 
   const getStatusActions = (status: string, bookingId: string) => {
@@ -375,6 +454,184 @@ function MechanicDashboardContent() {
               </div>
             </div>
           </div>
+
+          <div className="bg-white rounded-xl shadow-lg p-6">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-blue-100 rounded-lg">
+                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-[var(--color-text-secondary)]">Active Services</p>
+                <p className="text-2xl font-bold text-[var(--color-primary-dark)]">
+                  {services.filter(s => s.status === 'approved').length}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-lg p-6">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-yellow-100 rounded-lg">
+                <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-[var(--color-text-secondary)]">Under Review</p>
+                <p className="text-2xl font-bold text-[var(--color-primary-dark)]">
+                  {services.filter(s => s.status === 'pending').length}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Services Section */}
+        <div className="bg-white rounded-xl shadow-lg p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold text-[var(--color-primary-dark)]">My Services</h2>
+            <Link href="/services/add" className="bg-[var(--color-primary)] !text-white px-4 py-2 rounded-lg font-medium hover:bg-[var(--color-primary-dark)] transition">
+              Add New Service
+            </Link>
+          </div>
+
+          {servicesLoading ? (
+            <div className="text-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--color-primary)] mx-auto mb-4"></div>
+              <p className="text-[var(--color-text-secondary)]">Loading your services...</p>
+            </div>
+          ) : servicesError ? (
+            <div className="text-center py-12">
+              <div className="text-red-500 mb-4">
+                <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-[var(--color-text-main)] mb-2">Error Loading Services</h3>
+              <p className="text-[var(--color-text-secondary)] mb-4">{servicesError}</p>
+              <button 
+                onClick={fetchServices}
+                className="bg-[var(--color-primary)] text-white px-6 py-2 rounded-lg font-medium hover:bg-[var(--color-primary-dark)] transition"
+              >
+                Try Again
+              </button>
+            </div>
+          ) : services.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="text-6xl mb-4">🛠️</div>
+              <h3 className="text-xl font-semibold mb-2">No services yet</h3>
+              <p className="text-[var(--color-text-secondary)] mb-4">Start by adding your first service to receive bookings from customers.</p>
+              <Link href="/services/add" className="bg-accent !text-white px-6 py-3 rounded-lg font-medium hover:bg-[var(--color-primary-dark)] transition">
+                Add Your First Service
+              </Link>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {services.map(service => {
+                const statusInfo = getServiceStatusMessage(service.status);
+                return (
+                  <div key={service._id} className="border border-gray-200 rounded-xl p-6">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <h3 className="text-xl font-semibold text-[var(--color-text-main)]">{service.title}</h3>
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${getServiceStatusBadge(service.status)}`}>
+                            {service.status}
+                          </span>
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${getServiceAvailabilityBadge(service.isActive, service.isAvailable)}`}>
+                            {!service.isActive ? 'Inactive' : !service.isAvailable ? 'Unavailable' : 'Available'}
+                          </span>
+                        </div>
+                        <p className="text-sm text-[var(--color-text-secondary)] mb-2">{service.category} • {service.serviceArea}</p>
+                        <p className="text-lg font-semibold text-[var(--color-primary)]">৳{service.basePrice}</p>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm text-[var(--color-text-muted)]">
+                          Created: {new Date(service.createdAt).toLocaleDateString()}
+                        </div>
+                        {service.status === 'approved' && (
+                          <div className="text-sm text-[var(--color-text-muted)]">
+                            {service.totalBookings} bookings • {service.averageRating.toFixed(1)} ⭐
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Status Message */}
+                    <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                      <div className="flex items-start gap-3">
+                        <span className="text-2xl">{statusInfo.icon}</span>
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-[var(--color-text-main)] mb-1">{statusInfo.title}</h4>
+                          <p className="text-sm text-[var(--color-text-secondary)]">{statusInfo.message}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Service Statistics (for approved services) */}
+                    {service.status === 'approved' && (
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-[var(--color-primary)]">{service.totalBookings}</div>
+                          <div className="text-xs text-[var(--color-text-secondary)]">Total Bookings</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-green-600">{service.completedBookings}</div>
+                          <div className="text-xs text-[var(--color-text-secondary)]">Completed</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-blue-600">{service.totalReviews}</div>
+                          <div className="text-xs text-[var(--color-text-secondary)]">Reviews</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-yellow-600">{service.averageRating.toFixed(1)}</div>
+                          <div className="text-xs text-[var(--color-text-secondary)]">Rating</div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Action Buttons */}
+                    <div className="flex gap-2 flex-wrap">
+                      <Link 
+                        href={`/services/${service._id}`}
+                        className="bg-[var(--color-primary)] text-white px-4 py-2 rounded-lg font-medium hover:bg-[var(--color-primary-dark)] transition"
+                      >
+                        View Details
+                      </Link>
+                      
+                      {service.status === 'rejected' && (
+                        <Link 
+                          href={`/services/${service._id}/edit`}
+                          className="bg-yellow-100 text-yellow-900 px-4 py-2 rounded-lg font-medium hover:bg-yellow-200 transition"
+                        >
+                          Update Service
+                        </Link>
+                      )}
+                      
+                      {service.status === 'approved' && (
+                        <button
+                          onClick={() => {
+                            // Toggle service availability
+                            // This would need a backend endpoint
+                            alert('Service availability toggle feature coming soon!');
+                          }}
+                          className={`px-4 py-2 rounded-lg font-medium transition ${
+                            service.isAvailable 
+                              ? 'bg-red-100 text-red-900 hover:bg-red-200' 
+                              : 'bg-green-100 text-green-900 hover:bg-green-200'
+                          }`}
+                        >
+                          {service.isAvailable ? 'Set Unavailable' : 'Set Available'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Bookings Section */}
