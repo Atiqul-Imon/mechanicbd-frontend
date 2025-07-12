@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import io from 'socket.io-client';
-import type { Socket as SocketType } from 'socket.io-client';
+
 
 interface GuestChatContextType {
   // Connection state
@@ -51,7 +51,7 @@ interface GuestChatProviderProps {
 }
 
 export const GuestChatProvider: React.FC<GuestChatProviderProps> = ({ children }) => {
-  const [socket, setSocket] = useState<SocketType | null>(null);
+  const [socket, setSocket] = useState<any>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [guestData, setGuestData] = useState<any>(null);
