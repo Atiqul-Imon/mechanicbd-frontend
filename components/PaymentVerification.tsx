@@ -7,6 +7,7 @@ import {
   Error
 } from '@mui/icons-material';
 import { CircularProgress } from '@mui/material';
+import api from '../utils/api';
 
 interface PaymentVerificationProps {
   paymentId: string;
@@ -34,29 +35,23 @@ export default function PaymentVerification({
     setIsSubmitting(true);
 
     try {
-      const response = await fetch('/api/payments/verify', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({
-          paymentId,
-          transactionId,
-          transactionReference
-        })
+      const response = await api.post('/payments/verify', {
+        paymentId,
+        transactionId,
+        transactionReference
       });
 
-      const data = await response.json();
+      const data = response.data;
 
-      if (response.ok) {
+      if (data.success) {
         onVerificationSuccess(data.data.payment);
       } else {
         setError(data.message || 'Verification failed');
         onVerificationError(data.message || 'Verification failed');
       }
-    } catch (err) {
-      const errorMessage = 'Network error. Please try again.';
+    } catch (err: any) {
+      console.error('Payment verification error:', err);
+      const errorMessage = err.response?.data?.message || 'Network error. Please try again.';
       setError(errorMessage);
       onVerificationError(errorMessage);
     } finally {

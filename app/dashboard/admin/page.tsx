@@ -42,7 +42,8 @@ import {
   CircularProgress,
   useTheme,
   useMediaQuery,
-  Snackbar
+  Snackbar,
+  Tooltip
 } from '@mui/material';
 import {
   Dashboard as DashboardIcon,
@@ -61,8 +62,10 @@ import {
   Delete as DeleteIcon,
   Visibility as ViewIcon,
   Add as AddIcon,
-  Payment as PaymentIcon
+  Payment as PaymentIcon,
+  Info as InfoIcon
 } from '@mui/icons-material';
+import type { JSX } from 'react';
 
 const drawerWidth = 240;
 
@@ -1013,7 +1016,7 @@ function PaymentManagement({ payments, onRefresh }: { payments: Payment[]; onRef
   );
 }
 
-function AdminDashboard() {
+function AdminDashboard(): JSX.Element {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   
@@ -1035,10 +1038,17 @@ function AdminDashboard() {
   const [refundAction, setRefundAction] = useState<'approve' | 'reject' | 'process'>('approve');
   const [refundNote, setRefundNote] = useState('');
   const [processingRefund, setProcessingRefund] = useState(false);
+  const [showStats, setShowStats] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
   }, []);
+
+  useEffect(() => {
+    if (!loading && stats) {
+      setShowStats(true);
+    }
+  }, [loading, stats]);
 
   const fetchDashboardData = async () => {
     setLoading(true);
@@ -1208,276 +1218,642 @@ function AdminDashboard() {
     </div>
   );
 
-  const renderDashboard = () => (
-    <Box>
-      {/* Stats Cards */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' }, gap: 3, mb: 4 }}>
-        <Card sx={{ borderRadius: 3, boxShadow: '0 2px 12px 0 rgba(153,27,27,0.08)' }}>
-          <CardContent>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Box sx={{ p: 1.5, bgcolor: 'primary.50', borderRadius: 2 }}>
-                <PeopleIcon sx={{ color: 'primary.main', fontSize: 28 }} />
-              </Box>
-              <Box>
-                <Typography variant="body2" color="textSecondary" sx={{ fontWeight: 500, fontFamily: 'Poppins, Arial, Helvetica, sans-serif' }}>
-                  Total Users
-                </Typography>
-                <Typography variant="h4" sx={{ fontWeight: 700, color: 'primary.main', fontFamily: 'Poppins, Arial, Helvetica, sans-serif' }}>
-                  {stats?.totalUsers || 0}
-                </Typography>
-              </Box>
-            </Box>
-          </CardContent>
-        </Card>
+  const renderDashboard = () => {
+    const statCards: Array<{
+      label: string;
+      value: number;
+      icon: JSX.Element;
+      color: string;
+      tooltip: string;
+      detailsLink: string;
+      isCurrency?: boolean;
+      trend?: string;
+      trendValue?: number;
+    }> = [
+      {
+        label: 'Total Users',
+        value: stats?.totalUsers || 0,
+        icon: <PeopleIcon sx={{ fontSize: 40, color: '#991B1B' }} />,
+        color: 'linear-gradient(135deg, #fff0f0 0%, #ffeaea 100%)',
+        tooltip: 'All registered users on the platform',
+        detailsLink: '/dashboard/admin/users',
+        trend: '+12%',
+        trendValue: 12,
+      },
+      {
+        label: 'Total Bookings',
+        value: stats?.totalBookings || 0,
+        icon: <AssignmentIcon sx={{ fontSize: 40, color: '#4CAF50' }} />,
+        color: 'linear-gradient(135deg, #e8f5e9 0%, #f1f8e9 100%)',
+        tooltip: 'All service bookings made',
+        detailsLink: '/dashboard/admin/bookings',
+        trend: '+8%',
+        trendValue: 8,
+      },
+      {
+        label: 'Total Revenue',
+        value: stats?.totalRevenue || 0,
+        icon: <MoneyIcon sx={{ fontSize: 40, color: '#FFA726' }} />,
+        color: 'linear-gradient(135deg, #fff8e1 0%, #fff3e0 100%)',
+        tooltip: 'Total revenue generated',
+        detailsLink: '/dashboard/admin/payments',
+        isCurrency: true,
+        trend: '+15%',
+        trendValue: 15,
+      },
+      {
+        label: 'Active Services',
+        value: services.filter(s => s.status === 'approved').length,
+        icon: <BuildIcon sx={{ fontSize: 40, color: '#1976D2' }} />,
+        color: 'linear-gradient(135deg, #e3f2fd 0%, #e1f5fe 100%)',
+        tooltip: 'Currently approved and active services',
+        detailsLink: '/dashboard/admin/services',
+        trend: '+5%',
+        trendValue: 5,
+      },
+    ];
 
-        <Card sx={{ borderRadius: 3, boxShadow: '0 2px 12px 0 rgba(153,27,27,0.08)' }}>
-          <CardContent>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Box sx={{ p: 1.5, bgcolor: 'success.50', borderRadius: 2 }}>
-                <AssignmentIcon sx={{ color: 'success.main', fontSize: 28 }} />
-              </Box>
-              <Box>
-                <Typography variant="body2" color="textSecondary" sx={{ fontWeight: 500, fontFamily: 'Poppins, Arial, Helvetica, sans-serif' }}>
-                  Total Bookings
-                </Typography>
-                <Typography variant="h4" sx={{ fontWeight: 700, color: 'success.main', fontFamily: 'Poppins, Arial, Helvetica, sans-serif' }}>
-                  {stats?.totalBookings || 0}
-                </Typography>
-              </Box>
-            </Box>
-          </CardContent>
-        </Card>
-
-        <Card sx={{ borderRadius: 3, boxShadow: '0 2px 12px 0 rgba(153,27,27,0.08)' }}>
-          <CardContent>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Box sx={{ p: 1.5, bgcolor: 'warning.50', borderRadius: 2 }}>
-                <MoneyIcon sx={{ color: 'warning.main', fontSize: 28 }} />
-              </Box>
-              <Box>
-                <Typography variant="body2" color="textSecondary" sx={{ fontWeight: 500, fontFamily: 'Poppins, Arial, Helvetica, sans-serif' }}>
-                  Total Revenue
-                </Typography>
-                <Typography variant="h4" sx={{ fontWeight: 700, color: 'warning.main', fontFamily: 'Poppins, Arial, Helvetica, sans-serif' }}>
-                  ৳{stats?.totalRevenue || 0}
-                </Typography>
-              </Box>
-            </Box>
-          </CardContent>
-        </Card>
-
-        <Card sx={{ borderRadius: 3, boxShadow: '0 2px 12px 0 rgba(153,27,27,0.08)' }}>
-          <CardContent>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Box sx={{ p: 1.5, bgcolor: 'info.50', borderRadius: 2 }}>
-                <BuildIcon sx={{ color: 'info.main', fontSize: 28 }} />
-              </Box>
-              <Box>
-                <Typography variant="body2" color="textSecondary" sx={{ fontWeight: 500, fontFamily: 'Poppins, Arial, Helvetica, sans-serif' }}>
-                  Active Services
-                </Typography>
-                <Typography variant="h4" sx={{ fontWeight: 700, color: 'info.main', fontFamily: 'Poppins, Arial, Helvetica, sans-serif' }}>
-                  {services.filter(s => s.status === 'approved').length}
-                </Typography>
-              </Box>
-            </Box>
-          </CardContent>
-        </Card>
-      </Box>
-
-      {/* Recent Bookings */}
-      <Card sx={{ mt: 4, borderRadius: 3, boxShadow: '0 2px 12px 0 rgba(153,27,27,0.08)' }}>
-        <CardContent>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-            <Typography variant="h5" sx={{ fontWeight: 700, color: 'primary.main', fontFamily: 'Poppins, Arial, Helvetica, sans-serif' }}>
-              Recent Bookings
-            </Typography>
-            <Button variant="outlined" startIcon={<AddIcon />} color="secondary" sx={{ fontWeight: 600, borderRadius: 2 }}>
-              View All
-            </Button>
-          </Box>
-          
-          <TableContainer>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Booking #</TableCell>
-                  <TableCell>Customer</TableCell>
-                  <TableCell>Service</TableCell>
-                  <TableCell>Mechanic</TableCell>
-                  <TableCell>Date</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Amount</TableCell>
-                  <TableCell>Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {bookings.slice(0, 10).map((booking) => (
-                  <TableRow key={booking._id}>
-                    <TableCell>{booking.bookingNumber}</TableCell>
-                    <TableCell>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Avatar sx={{ width: 32, height: 32 }}>
-                          {booking.customer.fullName.charAt(0)}
-                        </Avatar>
-                        <Box>
-                          <Typography variant="body2">{booking.customer.fullName}</Typography>
-                          <Typography variant="caption" color="textSecondary">
-                            {booking.customer.phoneNumber}
+    return (
+      <Box>
+        {/* Stats Cards */}
+        <Box sx={{ 
+          display: 'grid', 
+          gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: 'repeat(4, 1fr)' }, 
+          gap: 3, 
+          mb: 4 
+        }}>
+          {loading || !showStats ? (
+            Array.from({ length: 4 }).map((_, idx: number) => (
+              <Card key={idx} sx={{ 
+                borderRadius: 3, 
+                minHeight: 160, 
+                boxShadow: '0 2px 16px 0 rgba(153,27,27,0.10)',
+                background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)',
+                position: 'relative',
+                overflow: 'hidden'
+              }}>
+                <CardContent>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Box sx={{ 
+                      width: 56, 
+                      height: 56, 
+                      borderRadius: 2, 
+                      bgcolor: '#f5f5f5', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center',
+                      animation: 'pulse 2s infinite'
+                    }}>
+                      <CircularProgress size={32} thickness={4} />
+                    </Box>
+                    <Box sx={{ flex: 1 }}>
+                      <Box sx={{ 
+                        width: '60%', 
+                        height: 18, 
+                        bgcolor: '#eee', 
+                        borderRadius: 1, 
+                        mb: 1,
+                        animation: 'pulse 2s infinite'
+                      }} />
+                      <Box sx={{ 
+                        width: '40%', 
+                        height: 28, 
+                        bgcolor: '#eee', 
+                        borderRadius: 1,
+                        animation: 'pulse 2s infinite'
+                      }} />
+                    </Box>
+                  </Box>
+                </CardContent>
+              </Card>
+            ))
+          ) : (
+            statCards.map((card: typeof statCards[number], idx: number) => (
+              <Card key={card.label} sx={{ 
+                borderRadius: 3, 
+                minHeight: 160, 
+                boxShadow: '0 2px 16px 0 rgba(153,27,27,0.10)', 
+                background: card.color, 
+                position: 'relative', 
+                overflow: 'visible', 
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', 
+                cursor: 'pointer',
+                '&:hover': { 
+                  transform: 'translateY(-8px) scale(1.02)', 
+                  boxShadow: '0 12px 32px 0 rgba(153,27,27,0.25)',
+                  '& .card-icon': {
+                    transform: 'scale(1.1) rotate(5deg)',
+                  }
+                },
+                '&::before': {
+                  content: '""',
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: '4px',
+                  background: 'linear-gradient(90deg, #991B1B, #DC2626)',
+                  borderRadius: '12px 12px 0 0',
+                }
+              }}>
+                <CardContent sx={{ p: 3 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                    <Box sx={{ 
+                      width: 64, 
+                      height: 64, 
+                      borderRadius: 3, 
+                      bgcolor: 'white', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center', 
+                      boxShadow: '0 4px 12px 0 rgba(0,0,0,0.1)',
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                      className: 'card-icon'
+                    }}>
+                      {card.icon}
+                    </Box>
+                    <Box sx={{ flex: 1 }}>
+                      <Typography variant="body2" color="textSecondary" sx={{ 
+                        fontWeight: 600, 
+                        fontFamily: 'Poppins, Arial, Helvetica, sans-serif', 
+                        mb: 0.5,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px',
+                        fontSize: '0.75rem'
+                      }}>
+                        {card.label}
+                      </Typography>
+                      <Typography variant="h3" sx={{ 
+                        fontWeight: 800, 
+                        color: '#1f2937', 
+                        fontFamily: 'Poppins, Arial, Helvetica, sans-serif', 
+                        lineHeight: 1.1,
+                        mb: 1,
+                        fontVariantNumeric: 'tabular-nums'
+                      }}>
+                        {card.isCurrency ? '৳' : ''}
+                        <span style={{ 
+                          transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+                          display: 'inline-block',
+                          animation: 'countUp 1s ease-out'
+                        }}>
+                          {card.value.toLocaleString()}
+                        </span>
+                      </Typography>
+                      {card.trend && (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <TrendingUpIcon sx={{ fontSize: 16, color: '#10B981' }} />
+                          <Typography variant="caption" sx={{ 
+                            color: '#10B981', 
+                            fontWeight: 600,
+                            fontSize: '0.75rem'
+                          }}>
+                            {card.trend} from last month
                           </Typography>
                         </Box>
-                      </Box>
-                    </TableCell>
-                    <TableCell>{booking.service?.title || <i>Service missing</i>}</TableCell>
-                    <TableCell>
-                      {booking.mechanic ? (
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Avatar sx={{ width: 24, height: 24 }}>
-                            {booking.mechanic.fullName.charAt(0)}
-                          </Avatar>
-                          <Typography variant="body2">{booking.mechanic.fullName}</Typography>
-                        </Box>
-                      ) : (
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          onClick={() => {
-                            setSelectedBooking(booking);
-                            setAssignDialogOpen(true);
-                          }}
-                        >
-                          Assign
-                        </Button>
                       )}
+                    </Box>
+                    <Box sx={{ ml: 1 }}>
+                      <Tooltip title={card.tooltip} arrow placement="top">
+                        <IconButton size="small" sx={{ 
+                          color: '#6B7280',
+                          '&:hover': {
+                            color: '#991B1B',
+                            bgcolor: 'rgba(153, 27, 27, 0.1)'
+                          }
+                        }}>
+                          <InfoIcon />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
+                  </Box>
+                  <Button
+                    href={card.detailsLink}
+                    variant="outlined"
+                    size="small"
+                    sx={{ 
+                      mt: 3, 
+                      borderRadius: 2, 
+                      fontWeight: 600, 
+                      textTransform: 'none', 
+                      color: '#991B1B', 
+                      borderColor: '#991B1B', 
+                      '&:hover': { 
+                        bgcolor: '#fff0f0', 
+                        borderColor: '#991B1B',
+                        transform: 'translateY(-1px)',
+                        boxShadow: '0 4px 8px rgba(153, 27, 27, 0.2)'
+                      },
+                      transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+                    }}
+                    fullWidth
+                  >
+                    View Details
+                  </Button>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </Box>
+
+        {/* Recent Bookings */}
+        <Card sx={{ 
+          mt: 4, 
+          borderRadius: 3, 
+          boxShadow: '0 2px 12px 0 rgba(153,27,27,0.08)',
+          overflow: 'hidden',
+          border: '1px solid #e5e7eb'
+        }}>
+          <CardContent sx={{ p: 0 }}>
+            <Box sx={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center', 
+              p: 3,
+              borderBottom: '1px solid #e5e7eb',
+              backgroundColor: '#f9fafb'
+            }}>
+              <Box>
+                <Typography variant="h5" sx={{ 
+                  fontWeight: 700, 
+                  color: '#1f2937', 
+                  fontFamily: 'Poppins, Arial, Helvetica, sans-serif',
+                  mb: 0.5
+                }}>
+                  Recent Bookings
+                </Typography>
+                <Typography variant="body2" color="textSecondary" sx={{ fontSize: '0.875rem' }}>
+                  Latest service requests and their status
+                </Typography>
+              </Box>
+              <Button 
+                variant="outlined" 
+                startIcon={<AddIcon />} 
+                sx={{ 
+                  fontWeight: 600, 
+                  borderRadius: 2,
+                  borderColor: '#991B1B',
+                  color: '#991B1B',
+                  '&:hover': {
+                    borderColor: '#7F1D1D',
+                    backgroundColor: '#fff0f0'
+                  }
+                }}
+              >
+                View All
+              </Button>
+            </Box>
+            
+            <TableContainer>
+              <Table sx={{ minWidth: 650 }}>
+                <TableHead>
+                  <TableRow sx={{ backgroundColor: '#f9fafb' }}>
+                    <TableCell sx={{ 
+                      fontWeight: 600, 
+                      color: '#374151',
+                      borderBottom: '2px solid #e5e7eb',
+                      fontSize: '0.875rem'
+                    }}>
+                      Booking #
                     </TableCell>
-                    <TableCell>
-                      <Typography variant="body2">
-                        {new Date(booking.scheduledDate).toISOString().slice(0, 10)}
-                      </Typography>
-                      <Typography variant="caption" color="textSecondary">
-                        {booking.scheduledTime}
-                      </Typography>
+                    <TableCell sx={{ 
+                      fontWeight: 600, 
+                      color: '#374151',
+                      borderBottom: '2px solid #e5e7eb',
+                      fontSize: '0.875rem'
+                    }}>
+                      Customer
                     </TableCell>
-                    <TableCell>
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        <Chip 
-                          label={booking.status.replace('_', ' ')} 
-                          size="small"
-                          color={booking.status === 'completed' ? 'success' : 
-                                 booking.status === 'cancelled' ? 'error' : 'primary'}
-                        />
-                        {/* Show refund status if exists */}
-                        {booking.refund && booking.refund.refundStatus !== 'none' && (
-                          <Chip 
-                            label={`Refund: ${booking.refund.refundStatus}`}
-                            size="small"
-                            sx={{ 
-                              bgcolor: getRefundStatusBadge(booking.refund.refundStatus).split(' ')[0].replace('bg-', ''),
-                              color: getRefundStatusBadge(booking.refund.refundStatus).split(' ')[1].replace('text-', '')
-                            }}
-                          />
-                        )}
-                        {/* Show reschedule status if exists */}
-                        {booking.reschedule && booking.reschedule.status !== 'none' && (
-                          <Chip 
-                            label={`Reschedule: ${booking.reschedule.status}`}
-                            size="small"
-                            sx={{ 
-                              bgcolor: getRescheduleStatusBadge(booking.reschedule.status).split(' ')[0].replace('bg-', ''),
-                              color: getRescheduleStatusBadge(booking.reschedule.status).split(' ')[1].replace('text-', '')
-                            }}
-                          />
-                        )}
-                      </Box>
+                    <TableCell sx={{ 
+                      fontWeight: 600, 
+                      color: '#374151',
+                      borderBottom: '2px solid #e5e7eb',
+                      fontSize: '0.875rem'
+                    }}>
+                      Service
                     </TableCell>
-                    <TableCell>
-                      <Typography variant="body2" fontWeight={600}>
-                        ৳{booking.totalAmount}
-                      </Typography>
+                    <TableCell sx={{ 
+                      fontWeight: 600, 
+                      color: '#374151',
+                      borderBottom: '2px solid #e5e7eb',
+                      fontSize: '0.875rem'
+                    }}>
+                      Mechanic
                     </TableCell>
-                    <TableCell>
-                      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          startIcon={<ViewIcon />}
-                          onClick={() => {/* View booking details */}}
-                        >
-                          View
-                        </Button>
-                        {/* Refund management button */}
-                        {booking.refund && booking.refund.refundStatus === 'requested' && (
-                          <Button
-                            size="small"
-                            variant="contained"
-                            color="warning"
-                            onClick={() => openRefundModal(booking)}
-                          >
-                            Handle Refund
-                          </Button>
-                        )}
-                      </Box>
+                    <TableCell sx={{ 
+                      fontWeight: 600, 
+                      color: '#374151',
+                      borderBottom: '2px solid #e5e7eb',
+                      fontSize: '0.875rem'
+                    }}>
+                      Date & Time
+                    </TableCell>
+                    <TableCell sx={{ 
+                      fontWeight: 600, 
+                      color: '#374151',
+                      borderBottom: '2px solid #e5e7eb',
+                      fontSize: '0.875rem'
+                    }}>
+                      Status
+                    </TableCell>
+                    <TableCell sx={{ 
+                      fontWeight: 600, 
+                      color: '#374151',
+                      borderBottom: '2px solid #e5e7eb',
+                      fontSize: '0.875rem'
+                    }}>
+                      Amount
+                    </TableCell>
+                    <TableCell sx={{ 
+                      fontWeight: 600, 
+                      color: '#374151',
+                      borderBottom: '2px solid #e5e7eb',
+                      fontSize: '0.875rem'
+                    }}>
+                      Actions
                     </TableCell>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </CardContent>
-      </Card>
+                </TableHead>
+                <TableBody>
+                  {bookings.slice(0, 10).map((booking, index) => (
+                    <TableRow 
+                      key={booking._id} 
+                      sx={{ 
+                        '&:hover': { 
+                          backgroundColor: '#f9fafb',
+                          '& .action-buttons': {
+                            opacity: 1
+                          }
+                        },
+                        transition: 'all 0.2s ease-in-out',
+                        animation: `slideInUp 0.3s ease-out ${index * 0.05}s both`
+                      }}
+                    >
+                      <TableCell sx={{ 
+                        fontWeight: 600, 
+                        color: '#991B1B',
+                        fontFamily: 'monospace',
+                        fontSize: '0.875rem'
+                      }}>
+                        {booking.bookingNumber}
+                      </TableCell>
+                      <TableCell>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                          <Avatar sx={{ 
+                            width: 40, 
+                            height: 40,
+                            bgcolor: '#991B1B',
+                            fontSize: '1rem',
+                            fontWeight: 600
+                          }}>
+                            {booking.customer.fullName.charAt(0).toUpperCase()}
+                          </Avatar>
+                          <Box>
+                            <Typography variant="body2" sx={{ 
+                              fontWeight: 600, 
+                              color: '#1f2937',
+                              mb: 0.5
+                            }}>
+                              {booking.customer.fullName}
+                            </Typography>
+                            <Typography variant="caption" sx={{ 
+                              color: '#6B7280',
+                              fontSize: '0.75rem'
+                            }}>
+                              {booking.customer.phoneNumber}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" sx={{ 
+                          fontWeight: 500,
+                          color: '#374151'
+                        }}>
+                          {booking.service?.title || <i style={{ color: '#9CA3AF' }}>Service missing</i>}
+                        </Typography>
+                        <Typography variant="caption" sx={{ 
+                          color: '#6B7280',
+                          fontSize: '0.75rem'
+                        }}>
+                          {booking.service?.category}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        {booking.mechanic ? (
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                            <Avatar sx={{ 
+                              width: 32, 
+                              height: 32,
+                              bgcolor: '#4CAF50',
+                              fontSize: '0.875rem',
+                              fontWeight: 600
+                            }}>
+                              {booking.mechanic.fullName.charAt(0).toUpperCase()}
+                            </Avatar>
+                            <Typography variant="body2" sx={{ 
+                              fontWeight: 500,
+                              color: '#374151'
+                            }}>
+                              {booking.mechanic.fullName}
+                            </Typography>
+                          </Box>
+                        ) : (
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            onClick={() => {
+                              setSelectedBooking(booking);
+                              setAssignDialogOpen(true);
+                            }}
+                            sx={{ 
+                              borderRadius: 2,
+                              textTransform: 'none',
+                              fontWeight: 600,
+                              borderColor: '#991B1B',
+                              color: '#991B1B',
+                              '&:hover': {
+                                backgroundColor: '#fff0f0',
+                                borderColor: '#7F1D1D'
+                              }
+                            }}
+                          >
+                            Assign
+                          </Button>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" sx={{ 
+                          fontWeight: 600,
+                          color: '#374151',
+                          mb: 0.5
+                        }}>
+                          {new Date(booking.scheduledDate).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric'
+                          })}
+                        </Typography>
+                        <Typography variant="caption" sx={{ 
+                          color: '#6B7280',
+                          fontSize: '0.75rem',
+                          fontFamily: 'monospace'
+                        }}>
+                          {booking.scheduledTime}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                          <Chip 
+                            label={booking.status.replace('_', ' ').toUpperCase()} 
+                            size="small"
+                            sx={{ 
+                              fontWeight: 600,
+                              fontSize: '0.75rem',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.5px'
+                            }}
+                            color={booking.status === 'completed' ? 'success' : 
+                                   booking.status === 'cancelled' ? 'error' : 'primary'}
+                          />
+                          {/* Show refund status if exists */}
+                          {booking.refund && booking.refund.refundStatus !== 'none' && (
+                            <Chip 
+                              label={`Refund: ${booking.refund.refundStatus}`}
+                              size="small"
+                              sx={{ 
+                                bgcolor: getRefundStatusBadge(booking.refund.refundStatus).split(' ')[0].replace('bg-', ''),
+                                color: getRefundStatusBadge(booking.refund.refundStatus).split(' ')[1].replace('text-', ''),
+                                fontSize: '0.625rem',
+                                height: 20
+                              }}
+                            />
+                          )}
+                          {/* Show reschedule status if exists */}
+                          {booking.reschedule && booking.reschedule.status !== 'none' && (
+                            <Chip 
+                              label={`Reschedule: ${booking.reschedule.status}`}
+                              size="small"
+                              sx={{ 
+                                bgcolor: getRescheduleStatusBadge(booking.reschedule.status).split(' ')[0].replace('bg-', ''),
+                                color: getRescheduleStatusBadge(booking.reschedule.status).split(' ')[1].replace('text-', ''),
+                                fontSize: '0.625rem',
+                                height: 20
+                              }}
+                            />
+                          )}
+                        </Box>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" sx={{ 
+                          fontWeight: 700,
+                          color: '#991B1B',
+                          fontFamily: 'monospace'
+                        }}>
+                          ৳{booking.totalAmount.toLocaleString()}
+                        </Typography>
+                        <Typography variant="caption" sx={{ 
+                          color: '#6B7280',
+                          fontSize: '0.75rem'
+                        }}>
+                          {booking.paymentStatus}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Box sx={{ 
+                          display: 'flex', 
+                          gap: 1,
+                          opacity: 0,
+                          transition: 'opacity 0.2s ease-in-out',
+                          className: 'action-buttons'
+                        }}>
+                          <IconButton 
+                            size="small" 
+                            sx={{ 
+                              color: '#6B7280',
+                              '&:hover': {
+                                color: '#991B1B',
+                                backgroundColor: '#fff0f0'
+                              }
+                            }}
+                          >
+                            <ViewIcon fontSize="small" />
+                          </IconButton>
+                          <IconButton 
+                            size="small" 
+                            sx={{ 
+                              color: '#6B7280',
+                              '&:hover': {
+                                color: '#4CAF50',
+                                backgroundColor: '#f0f9f0'
+                              }
+                            }}
+                          >
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                        </Box>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </CardContent>
+        </Card>
 
-      {/* Refund Management Modal */}
-      {refundModalOpen && selectedBooking && (
-        <Dialog open={refundModalOpen} onClose={() => setRefundModalOpen(false)} maxWidth="sm" fullWidth>
-          <DialogTitle>Handle Refund Request</DialogTitle>
-          <DialogContent>
-            <Box sx={{ mb: 3 }}>
-              <Typography variant="body2" color="textSecondary" gutterBottom>
-                Refund Details:
-              </Typography>
-              <Typography variant="body1" fontWeight={600}>
-                Amount: ৳{selectedBooking.refund?.refundAmount}
-              </Typography>
-              <Typography variant="body2" color="textSecondary">
-                Reason: {selectedBooking.refund?.refundReason}
-              </Typography>
-            </Box>
-            <FormControl fullWidth sx={{ mb: 2 }}>
-              <InputLabel>Action</InputLabel>
-              <Select
-                value={refundAction}
-                label="Action"
-                onChange={(e) => setRefundAction(e.target.value as 'approve' | 'reject' | 'process')}
+        {/* Refund Management Modal */}
+        {refundModalOpen && selectedBooking && (
+          <Dialog open={refundModalOpen} onClose={() => setRefundModalOpen(false)} maxWidth="sm" fullWidth>
+            <DialogTitle>Handle Refund Request</DialogTitle>
+            <DialogContent>
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="body2" color="textSecondary" gutterBottom>
+                  Refund Details:
+                </Typography>
+                <Typography variant="body1" fontWeight={600}>
+                  Amount: ৳{selectedBooking.refund?.refundAmount}
+                </Typography>
+                <Typography variant="body2" color="textSecondary">
+                  Reason: {selectedBooking.refund?.refundReason}
+                </Typography>
+              </Box>
+              <FormControl fullWidth sx={{ mb: 2 }}>
+                <InputLabel>Action</InputLabel>
+                <Select
+                  value={refundAction}
+                  label="Action"
+                  onChange={(e) => setRefundAction(e.target.value as 'approve' | 'reject' | 'process')}
+                >
+                  <MenuItem value="approve">Approve</MenuItem>
+                  <MenuItem value="reject">Reject</MenuItem>
+                  <MenuItem value="process">Process Refund</MenuItem>
+                </Select>
+              </FormControl>
+              <TextField
+                fullWidth
+                multiline
+                rows={3}
+                label="Note (Optional)"
+                value={refundNote}
+                onChange={(e) => setRefundNote(e.target.value)}
+                placeholder="Add a note about your decision"
+              />
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setRefundModalOpen(false)}>Cancel</Button>
+              <Button 
+                onClick={handleRefundAction} 
+                variant="contained"
+                disabled={processingRefund}
               >
-                <MenuItem value="approve">Approve</MenuItem>
-                <MenuItem value="reject">Reject</MenuItem>
-                <MenuItem value="process">Process Refund</MenuItem>
-              </Select>
-            </FormControl>
-            <TextField
-              fullWidth
-              multiline
-              rows={3}
-              label="Note (Optional)"
-              value={refundNote}
-              onChange={(e) => setRefundNote(e.target.value)}
-              placeholder="Add a note about your decision"
-            />
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setRefundModalOpen(false)}>Cancel</Button>
-            <Button 
-              onClick={handleRefundAction} 
-              variant="contained"
-              disabled={processingRefund}
-            >
-              {processingRefund ? 'Processing...' : `${refundAction.charAt(0).toUpperCase() + refundAction.slice(1)} Refund`}
-            </Button>
-          </DialogActions>
-        </Dialog>
-      )}
-    </Box>
-  );
+                {processingRefund ? 'Processing...' : `${refundAction.charAt(0).toUpperCase() + refundAction.slice(1)} Refund`}
+              </Button>
+            </DialogActions>
+          </Dialog>
+        )}
+      </Box>
+    );
+  };
 
   const renderContent = () => {
     switch (selectedMenu) {
@@ -1517,81 +1893,167 @@ function AdminDashboard() {
   }
 
   return (
-    <Box sx={{ display: 'flex' }}>
-      <AppBar
-        position="fixed"
+    <div className="min-h-screen bg-gray-50 flex">
+      {/* Sidebar */}
+      <Drawer
+        variant="permanent"
         sx={{
-          width: { sm: `calc(100% - ${drawerWidth}px)` },
-          ml: { sm: `${drawerWidth}px` },
+          width: drawerWidth,
+          flexShrink: 0,
+          '& .MuiDrawer-paper': {
+            width: drawerWidth,
+            boxSizing: 'border-box',
+            backgroundColor: '#1f2937',
+            color: 'white',
+            borderRight: '1px solid #374151',
+          },
         }}
       >
-        <Toolbar>
-          <IconButton
-            color="inherit"
-            aria-label="open drawer"
-            edge="start"
-            onClick={handleDrawerToggle}
-            sx={{ mr: 2, display: { sm: 'none' } }}
-          >
-            <MenuIcon />
-          </IconButton>
-          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
-            {menuItems.find(item => item.value === selectedMenu)?.text || 'Dashboard'}
+        <Box sx={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          padding: 2,
+          borderBottom: '1px solid #374151',
+          backgroundColor: '#111827'
+        }}>
+          <Typography variant="h6" sx={{ 
+            fontWeight: 'bold',
+            background: 'linear-gradient(45deg, #991B1B, #DC2626)',
+            backgroundClip: 'text',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            fontSize: '1.5rem'
+          }}>
+            Mechanic BD Admin
           </Typography>
-          <IconButton color="inherit">
-            <Badge badgeContent={4} color="error">
-              <NotificationsIcon />
-            </Badge>
-          </IconButton>
-          <IconButton
-            color="inherit"
-            onClick={(e) => setAnchorEl(e.currentTarget)}
-          >
-            <AccountCircleIcon />
-          </IconButton>
-        </Toolbar>
-      </AppBar>
+        </Box>
+        <Box sx={{ overflow: 'auto', mt: 2 }}>
+          <List>
+            {[
+              { text: 'Dashboard', icon: <DashboardIcon />, value: 'dashboard' },
+              { text: 'Users', icon: <PeopleIcon />, value: 'users' },
+              { text: 'Services', icon: <BuildIcon />, value: 'services' },
+              { text: 'Bookings', icon: <AssignmentIcon />, value: 'bookings' },
+              { text: 'Payments', icon: <PaymentIcon />, value: 'payments' },
+              { text: 'Analytics', icon: <AssessmentIcon />, value: 'analytics' },
+              { text: 'Settings', icon: <SettingsIcon />, value: 'settings' },
+            ].map((item) => (
+              <ListItem key={item.text} disablePadding sx={{ mb: 1 }}>
+                <ListItemButton
+                  onClick={() => handleMenuClick(item.value)}
+                  selected={selectedMenu === item.value}
+                  sx={{
+                    mx: 1,
+                    borderRadius: 2,
+                    '&.Mui-selected': {
+                      backgroundColor: '#991B1B',
+                      color: 'white',
+                      '&:hover': {
+                        backgroundColor: '#7F1D1D',
+                      },
+                    },
+                    '&:hover': {
+                      backgroundColor: '#374151',
+                    },
+                    transition: 'all 0.2s ease-in-out',
+                  }}
+                >
+                  <ListItemIcon sx={{ 
+                    color: selectedMenu === item.value ? 'white' : '#9CA3AF',
+                    minWidth: 40 
+                  }}>
+                    {item.icon}
+                  </ListItemIcon>
+                  <ListItemText 
+                    primary={item.text} 
+                    sx={{ 
+                      '& .MuiTypography-root': {
+                        fontWeight: selectedMenu === item.value ? 600 : 400,
+                      }
+                    }}
+                  />
+                </ListItemButton>
+              </ListItem>
+            ))}
+          </List>
+        </Box>
+      </Drawer>
 
-      <Box
-        component="nav"
-        sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
-      >
-        <Drawer
-          variant="temporary"
-          open={mobileOpen}
-          onClose={handleDrawerToggle}
-          ModalProps={{
-            keepMounted: true,
-          }}
-          sx={{
-            display: { xs: 'block', sm: 'none' },
-            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
+      {/* Main Content */}
+      <Box sx={{ 
+        flexGrow: 1, 
+        display: 'flex', 
+        flexDirection: 'column',
+        minHeight: '100vh',
+        backgroundColor: '#f9fafb'
+      }}>
+        {/* Top Bar */}
+        <AppBar 
+          position="static" 
+          sx={{ 
+            backgroundColor: 'white',
+            color: '#1f2937',
+            boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+            borderBottom: '1px solid #e5e7eb'
           }}
         >
-          {drawer}
-        </Drawer>
-        <Drawer
-          variant="permanent"
-          sx={{
-            display: { xs: 'none', sm: 'block' },
-            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
-          }}
-          open
-        >
-          {drawer}
-        </Drawer>
-      </Box>
+          <Toolbar sx={{ justifyContent: 'space-between' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <IconButton
+                color="inherit"
+                aria-label="open drawer"
+                edge="start"
+                onClick={handleDrawerToggle}
+                sx={{ mr: 2, display: { sm: 'none' } }}
+              >
+                <MenuIcon />
+              </IconButton>
+              <Typography variant="h6" sx={{ fontWeight: 600, color: '#1f2937' }}>
+                {selectedMenu.charAt(0).toUpperCase() + selectedMenu.slice(1)} Management
+              </Typography>
+            </Box>
+            
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <IconButton color="inherit">
+                <Badge badgeContent={4} color="error">
+                  <NotificationsIcon />
+                </Badge>
+              </IconButton>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Avatar sx={{ width: 32, height: 32, bgcolor: '#991B1B' }}>
+                  <AccountCircleIcon />
+                </Avatar>
+                <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                  Admin
+                </Typography>
+              </Box>
+            </Box>
+          </Toolbar>
+        </AppBar>
 
-      <Box
-        component="main"
-        sx={{
-          flexGrow: 1,
+        {/* Content Area */}
+        <Box sx={{ 
+          flexGrow: 1, 
           p: 3,
-          width: { sm: `calc(100% - ${drawerWidth}px)` },
-          mt: 8,
-        }}
-      >
-        {renderContent()}
+          backgroundColor: '#f9fafb',
+          minHeight: 'calc(100vh - 64px)'
+        }}>
+          {loading ? (
+            <Box sx={{ 
+              display: 'flex', 
+              justifyContent: 'center', 
+              alignItems: 'center',
+              minHeight: '400px'
+            }}>
+              <CircularProgress size={60} sx={{ color: '#991B1B' }} />
+            </Box>
+          ) : (
+            <Box sx={{ maxWidth: '1400px', mx: 'auto' }}>
+              {renderContent()}
+            </Box>
+          )}
+        </Box>
       </Box>
 
       {/* Assign Mechanic Dialog */}
@@ -1631,7 +2093,7 @@ function AdminDashboard() {
         <MenuItem onClick={() => setAnchorEl(null)}>Settings</MenuItem>
         <MenuItem onClick={() => setAnchorEl(null)}>Logout</MenuItem>
       </Menu>
-    </Box>
+    </div>
   );
 }
 

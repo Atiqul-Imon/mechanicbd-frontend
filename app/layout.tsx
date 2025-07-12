@@ -1,5 +1,9 @@
 import './globals.css';
 import { AuthProvider } from '../contexts/AuthContext';
+import { ChatProvider } from '../components/ChatProvider';
+import { ChatWidget } from '../components/ChatWidget';
+import { GuestChatProvider } from '../components/GuestChatProvider';
+import { GuestChatWidget } from '../components/GuestChatWidget';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import ThemeWrapper from '../components/ThemeWrapper';
@@ -78,7 +82,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         {/* Security Headers */}
         <meta httpEquiv="X-Content-Type-Options" content="nosniff" />
-        <meta httpEquiv="X-Frame-Options" content="DENY" />
         <meta httpEquiv="X-XSS-Protection" content="1; mode=block" />
         <meta httpEquiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
         
@@ -102,11 +105,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <ThemeWrapper>
             <Suspense fallback={<LoadingFallback />}>
               <AuthProvider>
-                <Header />
-                <main className="flex-1">
-                  {children}
-                </main>
-                <Footer />
+                <GuestChatProvider>
+                  <Header />
+                  <main className="flex-1 flex flex-col">
+                    {children}
+                  </main>
+                  <Footer />
+                  <GuestChatWidget />
+                </GuestChatProvider>
               </AuthProvider>
             </Suspense>
           </ThemeWrapper>

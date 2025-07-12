@@ -67,6 +67,7 @@ export default function LoginPage() {
                 onChange={handleChange}
                 className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition"
                 placeholder="Enter email or phone number"
+                autoComplete="username"
                 required
               />
             </div>
@@ -82,6 +83,7 @@ export default function LoginPage() {
                 onChange={handleChange}
                 className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition"
                 placeholder="Enter password"
+                autoComplete="current-password"
                 required
               />
             </div>

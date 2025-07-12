@@ -77,10 +77,24 @@ export default function ServicesPage() {
       setLoading(true);
       setError('');
       try {
+        console.log('API_BASE from utils:', process.env.NODE_ENV === 'development' 
+          ? 'http://localhost:5000/api'
+          : process.env.NEXT_PUBLIC_API_URL
+            ? `${process.env.NEXT_PUBLIC_API_URL}/api`
+            : 'https://mechanicbd-backend.onrender.com/api');
+        
         const response = await get('/services');
-        setServices(response.data.data.services);
+        console.log('Services API response:', response);
+        if (response.data && response.data.data && response.data.data.services) {
+          setServices(response.data.data.services);
+        } else {
+          console.error('Invalid response structure:', response);
+          setError('Invalid response structure from API');
+          setServices(mockServices);
+        }
       } catch (err: unknown) {
         const errorMessage = err instanceof Error ? err.message : 'Failed to fetch services';
+        console.error('Services API error:', err);
         setError(errorMessage);
         // Fallback to mock data for development
         setServices(mockServices);

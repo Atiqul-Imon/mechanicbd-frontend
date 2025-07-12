@@ -17,6 +17,8 @@
     "@mui/system": "^7.1.1",
     "@mui/x-data-grid": "^8.5.3",
     "@tailwindcss/postcss": "^4.1.11",
+    "@types/node": "^20.19.7",
+    "@types/socket.io-client": "^1.4.36",
     "autoprefixer": "^10.4.21",
     "axios": "^1.10.0",
     "nanoid": "^5.1.5",
@@ -26,10 +28,10 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-hot-toast": "^2.5.2",
+    "socket.io-client": "^4.8.1",
     "source-map-js": "^1.2.1",
     "tailwindcss": "^4.1.11",
-    "typescript": "^5.8.3",
-    "@types/node": "^20.19.7"
+    "typescript": "^5.8.3"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
