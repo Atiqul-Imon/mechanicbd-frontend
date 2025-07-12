@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { post } from '../../utils/api';
 import { useAuth } from '../../contexts/AuthContext';
+import PasswordInput from '../../components/PasswordInput';
 
 export default function RegisterPage() {
   const [form, setForm] = useState({ fullName: '', phoneNumber: '', email: '', password: '', role: 'customer', skills: [], experience: '', hourlyRate: '' });
@@ -57,150 +58,171 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="max-w-md mx-auto mt-10 p-6 bg-white rounded shadow">
-      <h2 className="text-2xl font-bold mb-6 text-center">Register</h2>
-      {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-          {error}
-        </div>
-      )}
-      <form onSubmit={handleSubmit}>
-        <div className="mb-4">
-          <label className="block text-gray-700 text-sm font-bold mb-2">
-            Register as *
-          </label>
-          <select
-            name="role"
-            value={form.role}
-            onChange={handleChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
-            required
-          >
-            <option value="customer">Customer</option>
-            <option value="mechanic">Mechanic</option>
-          </select>
-        </div>
-        <div className="mb-4">
-          <label className="block text-gray-700 text-sm font-bold mb-2">
-            Full Name *
-          </label>
-          <input
-            type="text"
-            name="fullName"
-            value={form.fullName}
-            onChange={handleChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
-            placeholder="Enter your full name"
-            required
-          />
-        </div>
-        <div className="mb-4">
-          <label className="block text-gray-700 text-sm font-bold mb-2">
-            Phone Number *
-          </label>
-          <input
-            type="tel"
-            name="phoneNumber"
-            value={form.phoneNumber}
-            onChange={handleChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
-            placeholder="e.g., 01712345678"
-            required
-          />
-        </div>
-        <div className="mb-4">
-          <label className="block text-gray-700 text-sm font-bold mb-2">
-            Email (Optional)
-          </label>
-          <input
-            type="email"
-            name="email"
-            value={form.email}
-            onChange={handleChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
-            placeholder="Enter your email"
-          />
-        </div>
-        <div className="mb-6">
-          <label className="block text-gray-700 text-sm font-bold mb-2">
-            Password *
-          </label>
-          <input
-            type="password"
-            name="password"
-            value={form.password}
-            onChange={handleChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
-            placeholder="Enter password"
-            required
-          />
-        </div>
-        {/* Mechanic-specific fields */}
-        {form.role === 'mechanic' && (
-          <>
-            <div className="mb-4">
-              <label className="block text-gray-700 text-sm font-bold mb-2">
-                Skills (select multiple)
+    <div className="min-h-screen bg-background-light flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8">
+        <div className="bg-background-white rounded-xl shadow-lg p-8">
+          <div className="text-center mb-8">
+            <h2 className="text-3xl font-bold text-text-primary">Create Account</h2>
+            <p className="mt-2 text-text-secondary">Join Mechanic BD and get started</p>
+          </div>
+          
+          {error && (
+            <div className="bg-warning/10 border border-warning/20 text-warning px-4 py-3 rounded-lg mb-6">
+              {error}
+            </div>
+          )}
+          
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <label className="block text-text-primary text-sm font-semibold mb-2">
+                Register as *
               </label>
               <select
-                name="skills"
-                multiple
-                value={form.skills}
+                name="role"
+                value={form.role}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition"
                 required
               >
-                <option value="HVAC">HVAC</option>
-                <option value="Electrical">Electrical</option>
-                <option value="Plumbing">Plumbing</option>
-                <option value="Appliances">Appliances</option>
-                <option value="Carpentry">Carpentry</option>
-                <option value="Painting">Painting</option>
-                <option value="Cleaning">Cleaning</option>
-                <option value="Other">Other</option>
+                <option value="customer">Customer</option>
+                <option value="mechanic">Mechanic</option>
               </select>
             </div>
-            <div className="mb-4">
-              <label className="block text-gray-700 text-sm font-bold mb-2">
-                Years of Experience *
+            
+            <div>
+              <label className="block text-text-primary text-sm font-semibold mb-2">
+                Full Name *
               </label>
               <input
-                type="number"
-                name="experience"
-                value={form.experience}
+                type="text"
+                name="fullName"
+                value={form.fullName}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
-                placeholder="e.g., 5"
-                min={0}
-                max={50}
+                className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition"
+                placeholder="Enter your full name"
                 required
               />
             </div>
-            <div className="mb-6">
-              <label className="block text-gray-700 text-sm font-bold mb-2">
-                Hourly Rate (BDT) *
+            
+            <div>
+              <label className="block text-text-primary text-sm font-semibold mb-2">
+                Phone Number *
               </label>
               <input
-                type="number"
-                name="hourlyRate"
-                value={form.hourlyRate}
+                type="tel"
+                name="phoneNumber"
+                value={form.phoneNumber}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
-                placeholder="e.g., 500"
-                min={0}
+                className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition"
+                placeholder="e.g., 01712345678"
                 required
               />
             </div>
-          </>
-        )}
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full bg-blue-700 text-white py-2 px-4 rounded hover:bg-blue-800 disabled:opacity-50"
-        >
-          {loading ? 'Registering...' : 'Register'}
-        </button>
-      </form>
+            
+            <div>
+              <label className="block text-text-primary text-sm font-semibold mb-2">
+                Email (Optional)
+              </label>
+              <input
+                type="email"
+                name="email"
+                value={form.email}
+                onChange={handleChange}
+                className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition"
+                placeholder="Enter your email"
+              />
+            </div>
+            
+            <PasswordInput
+              name="password"
+              value={form.password}
+              onChange={handleChange}
+              placeholder="Enter password"
+              label="Password *"
+              autoComplete="new-password"
+              required
+            />
+            
+            {/* Mechanic-specific fields */}
+            {form.role === 'mechanic' && (
+              <>
+                <div>
+                  <label className="block text-text-primary text-sm font-semibold mb-2">
+                    Skills (select multiple)
+                  </label>
+                  <select
+                    name="skills"
+                    multiple
+                    value={form.skills}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition"
+                    required
+                  >
+                    <option value="HVAC">HVAC</option>
+                    <option value="Electrical">Electrical</option>
+                    <option value="Plumbing">Plumbing</option>
+                    <option value="Appliances">Appliances</option>
+                    <option value="Carpentry">Carpentry</option>
+                    <option value="Painting">Painting</option>
+                    <option value="Cleaning">Cleaning</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-text-primary text-sm font-semibold mb-2">
+                    Years of Experience *
+                  </label>
+                  <input
+                    type="number"
+                    name="experience"
+                    value={form.experience}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition"
+                    placeholder="e.g., 5"
+                    min={0}
+                    max={50}
+                    required
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-text-primary text-sm font-semibold mb-2">
+                    Hourly Rate (BDT) *
+                  </label>
+                  <input
+                    type="number"
+                    name="hourlyRate"
+                    value={form.hourlyRate}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition"
+                    placeholder="e.g., 500"
+                    min={0}
+                    required
+                  />
+                </div>
+              </>
+            )}
+            
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-primary text-white py-3 px-4 rounded-lg font-semibold hover:bg-primary-dark disabled:opacity-50 transition"
+            >
+              {loading ? 'Creating Account...' : 'Create Account'}
+            </button>
+          </form>
+          
+          <div className="mt-6 text-center">
+            <p className="text-text-secondary">
+              Already have an account?{' '}
+              <a href="/login" className="text-primary hover:text-primary-dark font-semibold">
+                Sign in here
+              </a>
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 } 

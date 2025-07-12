@@ -6,6 +6,7 @@ import ProtectedRoute from '../../components/ProtectedRoute';
 import Link from 'next/link';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import ErrorMessage from '../../components/ErrorMessage';
+import PasswordInput from '../../components/PasswordInput';
 
 interface UserProfile {
   _id: string;
@@ -711,16 +712,14 @@ function ProfileContent() {
 
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-text-secondary mb-2">
-                        Current Password *
-                      </label>
-                      <input
-                        type="password"
+                      <PasswordInput
+                        name="currentPassword"
                         value={passwordForm.currentPassword}
                         onChange={(e) => setPasswordForm({...passwordForm, currentPassword: e.target.value})}
-                        className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary ${
-                          formErrors.currentPassword ? 'border-warning' : 'border-gray-300'
-                        }`}
+                        placeholder="Enter current password"
+                        label="Current Password *"
+                        autoComplete="current-password"
+                        required
                       />
                       {formErrors.currentPassword && (
                         <p className="text-warning text-sm mt-1">{formErrors.currentPassword}</p>
@@ -728,16 +727,14 @@ function ProfileContent() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-text-secondary mb-2">
-                        New Password *
-                      </label>
-                      <input
-                        type="password"
+                      <PasswordInput
+                        name="newPassword"
                         value={passwordForm.newPassword}
                         onChange={(e) => setPasswordForm({...passwordForm, newPassword: e.target.value})}
-                        className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary ${
-                          formErrors.newPassword ? 'border-warning' : 'border-gray-300'
-                        }`}
+                        placeholder="Enter new password"
+                        label="New Password *"
+                        autoComplete="new-password"
+                        required
                       />
                       {formErrors.newPassword && (
                         <p className="text-warning text-sm mt-1">{formErrors.newPassword}</p>
@@ -745,16 +742,14 @@ function ProfileContent() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-text-secondary mb-2">
-                        Confirm New Password *
-                      </label>
-                      <input
-                        type="password"
+                      <PasswordInput
+                        name="confirmPassword"
                         value={passwordForm.confirmPassword}
                         onChange={(e) => setPasswordForm({...passwordForm, confirmPassword: e.target.value})}
-                        className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary ${
-                          formErrors.confirmPassword ? 'border-warning' : 'border-gray-300'
-                        }`}
+                        placeholder="Confirm new password"
+                        label="Confirm New Password *"
+                        autoComplete="new-password"
+                        required
                       />
                       {formErrors.confirmPassword && (
                         <p className="text-warning text-sm mt-1">{formErrors.confirmPassword}</p>

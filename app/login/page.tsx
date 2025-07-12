@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { post } from '../../utils/api';
 import { useAuth } from '../../contexts/AuthContext';
+import PasswordInput from '../../components/PasswordInput';
 
 export default function LoginPage() {
   const [form, setForm] = useState({ identifier: '', password: '' });
@@ -72,21 +73,15 @@ export default function LoginPage() {
               />
             </div>
             
-            <div>
-              <label className="block text-text-primary text-sm font-semibold mb-2">
-                Password
-              </label>
-              <input
-                type="password"
-                name="password"
-                value={form.password}
-                onChange={handleChange}
-                className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition"
-                placeholder="Enter password"
-                autoComplete="current-password"
-                required
-              />
-            </div>
+            <PasswordInput
+              name="password"
+              value={form.password}
+              onChange={handleChange}
+              placeholder="Enter password"
+              label="Password"
+              autoComplete="current-password"
+              required
+            />
             
             <button
               type="submit"
